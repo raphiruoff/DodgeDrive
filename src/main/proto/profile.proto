@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package de.ruoff.consistency.service;
+
+option java_multiple_files = true;
+
+service ProfileService {
+  rpc CreateProfile (CreateProfileRequest) returns (CreateProfileResponse);
+}
+
+message CreateProfileRequest {
+  string first_name = 1;
+  string last_name = 2;
+}
+
+message CreateProfileResponse {
+  string message = 1;
+}
