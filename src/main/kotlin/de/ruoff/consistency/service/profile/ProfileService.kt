@@ -1,12 +1,14 @@
 package de.ruoff.consistency.service.profile
 
+import de.ruoff.consistency.service.kafka.ProfileKafkaProducer
 import de.ruoff.consistency.service.*
 import io.grpc.stub.StreamObserver
 import org.springframework.grpc.server.service.GrpcService
 
 @GrpcService
 class ProfileService(
-    private val profileRepository: ProfileRepository
+    private val profileRepository: ProfileRepository,
+    private val profileKafkaProducer: ProfileKafkaProducer
 ) : ProfileServiceGrpc.ProfileServiceImplBase() {
 
     override fun createProfile(
@@ -19,6 +21,9 @@ class ProfileService(
         )
 
         val savedProfile = profileRepository.save(profile)
+
+
+        profileKafkaProducer.publishProfile(savedProfile)
 
         val response = CreateProfileResponse.newBuilder()
             .setMessage("Profile created with ID: ${savedProfile.id}")
