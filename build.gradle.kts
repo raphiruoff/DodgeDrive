@@ -1,12 +1,15 @@
 import com.google.protobuf.gradle.id
 
 plugins {
-	kotlin("jvm") version "1.9.25"
-	kotlin("plugin.spring") version "1.9.25"
+	kotlin("jvm") version "1.9.23"
+	kotlin("plugin.spring") version "1.9.23"
 	id("org.springframework.boot") version "3.4.2"
 	id("io.spring.dependency-management") version "1.1.7"
 	id("com.google.protobuf") version "0.9.4"
+	id("com.android.application") version "8.4.0" apply false
+	id("org.jetbrains.kotlin.android") version "1.9.23" apply false
 }
+
 
 group = "de.ruoff"
 version = "0.0.1-SNAPSHOT"
@@ -37,6 +40,7 @@ dependencies {
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation("org.springframework.kafka:spring-kafka")
+	implementation("org.springframework.boot:spring-boot-starter-security")
 }
 
 dependencyManagement {
