@@ -3,6 +3,8 @@ package de.ruoff.consistency.service.auth
 import io.grpc.stub.StreamObserver
 import org.springframework.grpc.server.service.GrpcService
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
+import io.grpc.Status
+import io.grpc.StatusRuntimeException
 
 @GrpcService
 class AuthController(val authRepository: AuthRepository):AuthServiceGrpc.AuthServiceImplBase() {
@@ -18,29 +20,31 @@ class AuthController(val authRepository: AuthRepository):AuthServiceGrpc.AuthSer
     override fun register(request: RegisterRequest, responseObserver: StreamObserver<RegisterResponse>) {
         try {
             if (authRepository.existsByUsername(request.username)) {
-                responseObserver.onError(IllegalArgumentException("User existiert bereits!"))
+                val status = Status.ALREADY_EXISTS
+                    .withDescription("Benutzername bereits vergeben.")
+                    .asRuntimeException()
+                responseObserver.onError(status)
                 return
             }
 
             val hashedPassword = hashPassword(request.password)
-
             val user = AuthModel(username = request.username, password = hashedPassword)
             authRepository.save(user)
 
-            // Antwort erstellen
             val response = RegisterResponse.newBuilder()
                 .setMessage("Registrierung erfolgreich")
                 .build()
 
-            // Antwort an den gRPC-Client senden
             responseObserver.onNext(response)
             responseObserver.onCompleted()
 
+        } catch (e: Exception) {
+            responseObserver.onError(
+                Status.INTERNAL
+                    .withDescription("Fehler bei Registrierung: ${e.message}")
+                    .asRuntimeException()
+            )
         }
-        catch (e: Exception) {
-            responseObserver.onError(e)
-        }
-
     }
 
     override fun login(request: LoginRequest, responseObserver: StreamObserver<LoginResponse>) {
@@ -48,11 +52,20 @@ class AuthController(val authRepository: AuthRepository):AuthServiceGrpc.AuthSer
             val user = authRepository.findByUsername(request.username)
 
             if (user == null) {
-                responseObserver.onError(NoSuchElementException("Kein User unter diesem Namen vorhanden."))
+                responseObserver.onError(
+                    Status.NOT_FOUND
+                        .withDescription("Kein User unter diesem Namen vorhanden.")
+                        .asRuntimeException()
+                )
                 return
             }
+
             if (!verifyPassword(request.password, user.password)) {
-                responseObserver.onError(IllegalArgumentException("Falsches Passwort. Bitte erneut eingeben."))
+                responseObserver.onError(
+                    Status.PERMISSION_DENIED
+                        .withDescription("Falsches Passwort. Bitte erneut eingeben.")
+                        .asRuntimeException()
+                )
                 return
             }
 
@@ -63,9 +76,14 @@ class AuthController(val authRepository: AuthRepository):AuthServiceGrpc.AuthSer
             responseObserver.onNext(response)
             responseObserver.onCompleted()
         } catch (e: Exception) {
-            responseObserver.onError(e)
+            responseObserver.onError(
+                Status.INTERNAL
+                    .withDescription("Fehler beim Login: ${e.message}")
+                    .asRuntimeException()
+            )
         }
     }
+
 
 
 
