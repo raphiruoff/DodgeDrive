@@ -1,7 +1,7 @@
 package de.ruoff.consistency.service.kafka
 
 
-import de.ruoff.consistency.service.profile.ProfileModel
+import de.ruoff.consistency.service.ProfileModel
 import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.stereotype.Service
 

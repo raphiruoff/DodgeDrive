@@ -1,4 +1,4 @@
-package de.ruoff.consistency.service.profile
+package de.ruoff.consistency.service
 
 import de.ruoff.consistency.service.kafka.ProfileKafkaProducer
 import de.ruoff.consistency.service.*

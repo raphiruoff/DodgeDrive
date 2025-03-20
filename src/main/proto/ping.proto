@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+option java_package = "de.ruoff.consistency.service.ping";
+option java_multiple_files = true;
+
+service PingService {
+  rpc Ping (PingRequest) returns (PingResponse);
+}
+
+message PingRequest {
+  string message = 1;
+}
+
+message PingResponse {
+  string message = 1;
+}

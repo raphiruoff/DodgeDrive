@@ -7,6 +7,6 @@ import org.springframework.stereotype.Repository
 
 @Repository
 interface AuthRepository : JpaRepository<AuthModel, Long> {
-    fun existsByUserName(username: String): Boolean
-    fun findByUserName(username: String): AuthModel?
+    fun existsByUsername(username: String): Boolean
+    fun findByUsername(username: String): AuthModel?
 }

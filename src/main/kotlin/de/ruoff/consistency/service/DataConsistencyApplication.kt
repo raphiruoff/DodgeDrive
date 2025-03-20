@@ -5,7 +5,7 @@ import org.springframework.boot.runApplication
 
 // docker-compose up -d
 // ./gradlew bootRun
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = ["de.ruoff.consistency.service"])
 class DataConsistencyApplication
 
 fun main(args: Array<String>) {

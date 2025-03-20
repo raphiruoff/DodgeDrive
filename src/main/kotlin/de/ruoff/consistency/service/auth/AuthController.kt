@@ -17,7 +17,7 @@ class AuthController(val authRepository: AuthRepository):AuthServiceGrpc.AuthSer
     }
     override fun register(request: RegisterRequest, responseObserver: StreamObserver<RegisterResponse>) {
         try {
-            if (authRepository.existsByUserName(request.username)) {
+            if (authRepository.existsByUsername(request.username)) {
                 responseObserver.onError(IllegalArgumentException("User existiert bereits!"))
                 return
             }
@@ -45,7 +45,7 @@ class AuthController(val authRepository: AuthRepository):AuthServiceGrpc.AuthSer
 
     override fun login(request: LoginRequest, responseObserver: StreamObserver<LoginResponse>) {
         try {
-            val user = authRepository.findByUserName(request.username)
+            val user = authRepository.findByUsername(request.username)
 
             if (user == null) {
                 responseObserver.onError(NoSuchElementException("Kein User unter diesem Namen vorhanden."))
