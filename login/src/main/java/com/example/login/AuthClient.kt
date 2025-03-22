@@ -1,18 +1,20 @@
 package com.example.login
 
-import com.example.login.proto.AuthServiceGrpc
-import com.example.login.proto.RegisterRequest
-import com.example.login.proto.LoginRequest
-import com.example.login.proto.LoginResponse
-
+import android.util.Log
+import de.ruoff.consistency.service.auth.AuthServiceGrpc
+import de.ruoff.consistency.service.auth.RegisterRequest
+import de.ruoff.consistency.service.auth.LoginRequest
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
+import io.grpc.Status
+import io.grpc.StatusRuntimeException
 
 class AuthClient {
 
     private val channel: ManagedChannel = ManagedChannelBuilder
         .forAddress("10.0.2.2", 9090) // Emulator -> localhost
         .usePlaintext()
+        .directExecutor()
         .build()
 
     private val stub = AuthServiceGrpc.newBlockingStub(channel)
@@ -26,8 +28,17 @@ class AuthClient {
         return try {
             val response = stub.register(request)
             response.message
+        } catch (e: StatusRuntimeException) {
+            Log.e("AuthClient", "gRPC Fehler beim Registrieren", e)
+            when (e.status.code) {
+                Status.Code.ALREADY_EXISTS -> "Benutzername ist bereits vergeben."
+                Status.Code.UNAVAILABLE -> "Server nicht erreichbar. Bitte später erneut versuchen."
+                Status.Code.INTERNAL -> "Interner Serverfehler: ${e.status.description}"
+                else -> "Registrierung fehlgeschlagen: [${e.status.code}] ${e.status.description}"
+            }
         } catch (e: Exception) {
-            "Registrierung fehlgeschlagen: ${e.message}"
+            Log.e("AuthClient", "Unbekannter Fehler beim Registrieren", e)
+            "Unbekannter Fehler bei der Registrierung: ${e.message}"
         }
     }
 
@@ -40,8 +51,18 @@ class AuthClient {
         return try {
             val response = stub.login(request)
             response.message
+        } catch (e: StatusRuntimeException) {
+            Log.e("AuthClient", "gRPC Fehler beim Login", e)
+            when (e.status.code) {
+                Status.Code.NOT_FOUND -> "Benutzername nicht gefunden."
+                Status.Code.PERMISSION_DENIED -> "Falsches Passwort."
+                Status.Code.UNAVAILABLE -> "Server nicht erreichbar. Bitte später erneut versuchen."
+                Status.Code.INTERNAL -> "Interner Serverfehler: ${e.status.description}"
+                else -> "Login fehlgeschlagen: [${e.status.code}] ${e.status.description}"
+            }
         } catch (e: Exception) {
-            "Login fehlgeschlagen: ${e.message}"
+            Log.e("AuthClient", "Unbekannter Fehler beim Login", e)
+            "Unbekannter Fehler beim Login: ${e.message}"
         }
     }
 }

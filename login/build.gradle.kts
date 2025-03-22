@@ -55,6 +55,7 @@ android {
 dependencies {
     // gRPC Abhängigkeiten für Android-Client
     implementation("io.grpc:grpc-okhttp:1.58.0")
+    //implementation("io.grpc:grpc-netty-shaded:1.58.0") //Test
     implementation("io.grpc:grpc-protobuf:1.58.0")
     implementation("io.grpc:grpc-stub:1.58.0")
     implementation("com.google.protobuf:protobuf-java:3.23.4")  // Gleiche Version wie im Backend
