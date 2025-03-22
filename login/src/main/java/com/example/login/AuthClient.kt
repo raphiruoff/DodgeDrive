@@ -65,4 +65,24 @@ class AuthClient {
             "Unbekannter Fehler beim Login: ${e.message}"
         }
     }
+
+    fun testConnection(): String {
+        return try {
+            // einfacher Test: Login mit leeren Strings (nur zum Erreichen des Servers)
+            val request = LoginRequest.newBuilder()
+                .setUsername("ping_test")
+                .setPassword("test")
+                .build()
+            stub.login(request) // wird vermutlich Fehler werfen, aber zeigt Erreichbarkeit
+            "Server erreichbar"
+        } catch (e: StatusRuntimeException) {
+            if (e.status.code == Status.Code.UNAVAILABLE) {
+                "Server nicht erreichbar"
+            } else {
+                "Server antwortet (Status: ${e.status.code})"
+            }
+        } catch (e: Exception) {
+            "Verbindungsfehler: ${e.message}"
+        }
+    }
 }

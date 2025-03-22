@@ -14,36 +14,47 @@ fun LoginScreen(authViewModel: AuthViewModel = viewModel()) {
     var password by remember { mutableStateOf("") }
     val message by authViewModel.message.collectAsState()
 
-    Column(
-        modifier = Modifier.padding(16.dp)
+    Column(modifier = Modifier
+        .fillMaxSize()
+        .padding(16.dp)
     ) {
         TextField(
             value = username,
             onValueChange = { username = it },
-            label = { Text("Username") }
+            label = { Text("Username") },
+            modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(8.dp))
 
         TextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("Password") }
+            label = { Text("Password") },
+            modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        Button(onClick = {
-            authViewModel.login(username, password)
-        }) {
+        Button(onClick = { authViewModel.login(username, password) },
+            modifier = Modifier.fillMaxWidth()) {
             Text("Login")
         }
+
         Spacer(modifier = Modifier.height(8.dp))
 
-        Button(onClick = {
-            authViewModel.register(username, password)
-        }) {
+        Button(onClick = { authViewModel.register(username, password) },
+            modifier = Modifier.fillMaxWidth()) {
             Text("Registrieren")
         }
 
-        Text(message)
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Button(onClick = { authViewModel.testConnection() },
+            modifier = Modifier.fillMaxWidth()) {
+            Text("Verbindung testen")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(text = message)
     }
 }

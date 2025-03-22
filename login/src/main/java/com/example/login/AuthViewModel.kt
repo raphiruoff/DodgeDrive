@@ -2,9 +2,9 @@ package com.example.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 class AuthViewModel : ViewModel() {
 
@@ -15,15 +15,22 @@ class AuthViewModel : ViewModel() {
 
     fun register(username: String, password: String) {
         viewModelScope.launch {
-            val response = authClient.register(username, password)
-            _message.value = response
+            val result = authClient.register(username, password)
+            _message.value = result
         }
     }
 
     fun login(username: String, password: String) {
         viewModelScope.launch {
-            val response = authClient.login(username, password)
-            _message.value = response
+            val result = authClient.login(username, password)
+            _message.value = result
+        }
+    }
+
+    fun testConnection() {
+        viewModelScope.launch {
+            val result = authClient.testConnection()
+            _message.value = result
         }
     }
 }
