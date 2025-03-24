@@ -1,88 +1,43 @@
 package com.example.login
 
 import android.util.Log
-import de.ruoff.consistency.service.auth.AuthServiceGrpc
-import de.ruoff.consistency.service.auth.RegisterRequest
-import de.ruoff.consistency.service.auth.LoginRequest
 import io.grpc.ManagedChannel
-import io.grpc.ManagedChannelBuilder
-import io.grpc.Status
-import io.grpc.StatusRuntimeException
+import io.grpc.okhttp.OkHttpChannelBuilder
+import java.net.InetSocketAddress
+import java.net.Socket
 
 class AuthClient {
 
-    private val channel: ManagedChannel = ManagedChannelBuilder
-        .forAddress("10.0.2.2", 9090) // Emulator -> localhost
-        .usePlaintext()
-        .directExecutor()
-        .build()
+    private val TAG = "AuthClient"
 
-    private val stub = AuthServiceGrpc.newBlockingStub(channel)
-
-    fun register(username: String, password: String): String {
-        val request = RegisterRequest.newBuilder()
-            .setUsername(username)
-            .setPassword(password)
+    // gRPC Channel (Lazy erstellt, ohne Stub-Aufruf)
+    private val channel: ManagedChannel by lazy {
+        Log.d(TAG, "Initialisiere gRPC-Channel zu 10.0.2.2:9090")
+        OkHttpChannelBuilder
+            .forAddress("10.0.2.2", 9090) // Emulator -> Host
+            .usePlaintext()
             .build()
+    }
 
+    fun testGrpcConnection(): String {
         return try {
-            val response = stub.register(request)
-            response.message
-        } catch (e: StatusRuntimeException) {
-            Log.e("AuthClient", "gRPC Fehler beim Registrieren", e)
-            when (e.status.code) {
-                Status.Code.ALREADY_EXISTS -> "Benutzername ist bereits vergeben."
-                Status.Code.UNAVAILABLE -> "Server nicht erreichbar. Bitte später erneut versuchen."
-                Status.Code.INTERNAL -> "Interner Serverfehler: ${e.status.description}"
-                else -> "Registrierung fehlgeschlagen: [${e.status.code}] ${e.status.description}"
-            }
+            val state = channel.getState(true)
+            Log.d(TAG, "Channel-State: $state")
+            "gRPC-Kanal erfolgreich aufgebaut (Status: $state)"
         } catch (e: Exception) {
-            Log.e("AuthClient", "Unbekannter Fehler beim Registrieren", e)
-            "Unbekannter Fehler bei der Registrierung: ${e.message}"
+            Log.e(TAG, "gRPC-Verbindungsfehler", e)
+            "gRPC-Verbindung fehlgeschlagen: ${e.message}"
         }
     }
 
-    fun login(username: String, password: String): String {
-        val request = LoginRequest.newBuilder()
-            .setUsername(username)
-            .setPassword(password)
-            .build()
-
+    fun testRawSocket(): String {
         return try {
-            val response = stub.login(request)
-            response.message
-        } catch (e: StatusRuntimeException) {
-            Log.e("AuthClient", "gRPC Fehler beim Login", e)
-            when (e.status.code) {
-                Status.Code.NOT_FOUND -> "Benutzername nicht gefunden."
-                Status.Code.PERMISSION_DENIED -> "Falsches Passwort."
-                Status.Code.UNAVAILABLE -> "Server nicht erreichbar. Bitte später erneut versuchen."
-                Status.Code.INTERNAL -> "Interner Serverfehler: ${e.status.description}"
-                else -> "Login fehlgeschlagen: [${e.status.code}] ${e.status.description}"
-            }
+            val socket = Socket()
+            socket.connect(InetSocketAddress("10.0.2.2", 9090), 2000)
+            socket.close()
+            "Raw-Socket-Verbindung erfolgreich – Port 9090 erreichbar"
         } catch (e: Exception) {
-            Log.e("AuthClient", "Unbekannter Fehler beim Login", e)
-            "Unbekannter Fehler beim Login: ${e.message}"
-        }
-    }
-
-    fun testConnection(): String {
-        return try {
-            // einfacher Test: Login mit leeren Strings (nur zum Erreichen des Servers)
-            val request = LoginRequest.newBuilder()
-                .setUsername("ping_test")
-                .setPassword("test")
-                .build()
-            stub.login(request) // wird vermutlich Fehler werfen, aber zeigt Erreichbarkeit
-            "Server erreichbar"
-        } catch (e: StatusRuntimeException) {
-            if (e.status.code == Status.Code.UNAVAILABLE) {
-                "Server nicht erreichbar"
-            } else {
-                "Server antwortet (Status: ${e.status.code})"
-            }
-        } catch (e: Exception) {
-            "Verbindungsfehler: ${e.message}"
+            "RAW Socket Fehler: ${e.message}"
         }
     }
 }

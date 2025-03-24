@@ -13,24 +13,15 @@ class AuthViewModel : ViewModel() {
     private val _message = MutableStateFlow("")
     val message = _message.asStateFlow()
 
-    fun register(username: String, password: String) {
+    fun testGrpcConnection() {
         viewModelScope.launch {
-            val result = authClient.register(username, password)
-            _message.value = result
+            _message.value = authClient.testGrpcConnection()
         }
     }
 
-    fun login(username: String, password: String) {
+    fun testRawSocket() {
         viewModelScope.launch {
-            val result = authClient.login(username, password)
-            _message.value = result
-        }
-    }
-
-    fun testConnection() {
-        viewModelScope.launch {
-            val result = authClient.testConnection()
-            _message.value = result
+            _message.value = authClient.testRawSocket()
         }
     }
 }
