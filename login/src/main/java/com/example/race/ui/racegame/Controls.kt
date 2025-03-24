@@ -12,16 +12,26 @@ import androidx.compose.ui.unit.dp
 fun Controls(controller: GameController) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically
+        horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        Button(onClick = { controller.rotateLeft() }) {
+        HoldableButton(
+            onPressStart = { controller.startRotatingLeft() },
+            onPressEnd = { controller.stopRotating() }
+        ) {
             Text("Left")
         }
-        Button(onClick = { controller.rotateRight() }) {
+
+        HoldableButton(
+            onPressStart = { controller.startRotatingRight() },
+            onPressEnd = { controller.stopRotating() }
+        ) {
             Text("Right")
         }
-        Button(onClick = { controller.moveForward() }) {
+
+        HoldableButton(
+            onPressStart = { controller.startMovingForward() },
+            onPressEnd = { controller.stopMoving() }
+        ) {
             Text("Forward")
         }
     }
