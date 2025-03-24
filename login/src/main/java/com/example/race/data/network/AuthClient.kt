@@ -1,23 +1,23 @@
-package com.example.login
+package com.example.race.data.network
 
 import android.util.Log
+import de.ruoff.consistency.service.ping.PingRequest
+import de.ruoff.consistency.service.ping.PingServiceGrpc
 import io.grpc.ManagedChannel
 import io.grpc.okhttp.OkHttpChannelBuilder
-import java.net.InetSocketAddress
-import java.net.Socket
 
 class AuthClient {
 
     private val TAG = "AuthClient"
 
-    // gRPC Channel (Lazy erstellt, ohne Stub-Aufruf)
     private val channel: ManagedChannel by lazy {
         Log.d(TAG, "Initialisiere gRPC-Channel zu 10.0.2.2:9090")
-        OkHttpChannelBuilder
-            .forAddress("10.0.2.2", 9090) // Emulator -> Host
+        OkHttpChannelBuilder.forAddress("10.0.2.2", 9090)
             .usePlaintext()
             .build()
     }
+
+    private val pingStub = PingServiceGrpc.newBlockingStub(channel)
 
     fun testGrpcConnection(): String {
         return try {
@@ -30,14 +30,14 @@ class AuthClient {
         }
     }
 
-    fun testRawSocket(): String {
+    fun sendPing(): String {
         return try {
-            val socket = Socket()
-            socket.connect(InetSocketAddress("10.0.2.2", 9090), 2000)
-            socket.close()
-            "Raw-Socket-Verbindung erfolgreich – Port 9090 erreichbar"
+            val request = PingRequest.newBuilder().build()
+            val response = pingStub.ping(request)
+            "Antwort vom Server: ${response.message}"
         } catch (e: Exception) {
-            "RAW Socket Fehler: ${e.message}"
+            Log.e(TAG, "Ping fehlgeschlagen", e)
+            "Fehler beim Ping: ${e.message}"
         }
     }
 }

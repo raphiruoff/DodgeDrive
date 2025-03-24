@@ -60,6 +60,7 @@ dependencies {
     implementation("com.google.protobuf:protobuf-java:3.23.4")  // Gleiche Version wie im Backend
 
     implementation("javax.annotation:javax.annotation-api:1.3.2")
+    implementation("androidx.navigation:navigation-compose:2.7.7")
 
 
 

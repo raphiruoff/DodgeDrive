@@ -1,4 +1,4 @@
-package com.example.login
+package com.example.race
 
 import org.junit.Test
 

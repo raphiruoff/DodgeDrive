@@ -1,7 +1,8 @@
-package com.example.login
+package com.example.race.ui.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.race.data.network.AuthClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -19,9 +20,9 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    fun testRawSocket() {
+    fun sendPing() {
         viewModelScope.launch {
-            _message.value = authClient.testRawSocket()
+            _message.value = authClient.sendPing()
         }
     }
 }
