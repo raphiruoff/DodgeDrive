@@ -8,20 +8,25 @@ class GameController {
     var gameState by mutableStateOf(GameState())
 
     fun moveForward() {
-        val radians = Math.toRadians(gameState.angle.toDouble())
-        val deltaX = (10 * Math.sin(radians)).toFloat()
-        val deltaY = (-10 * Math.cos(radians)).toFloat()
+        val radians = gameState.angle
+        val speed = 5f
+
+        val deltaX = (-speed * kotlin.math.cos(radians)).toFloat()
+        val deltaY = (-speed * kotlin.math.sin(radians)).toFloat()
+
         gameState = gameState.copy(
             x = gameState.x + deltaX,
             y = gameState.y + deltaY
         )
     }
 
+
+
     fun rotateLeft() {
-        gameState = gameState.copy(angle = gameState.angle - 10f)
+        gameState = gameState.copy(angle = gameState.angle - 0.05f)
     }
 
     fun rotateRight() {
-        gameState = gameState.copy(angle = gameState.angle + 10f)
+        gameState = gameState.copy(angle = gameState.angle + 0.05f)
     }
 }
