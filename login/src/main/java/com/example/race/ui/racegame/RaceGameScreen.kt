@@ -21,6 +21,7 @@ fun RaceGameScreen() {
                 .weight(1f)
                 .fillMaxWidth()
         ) {
+            RaceTrack(Modifier.fillMaxSize())
             Car(gameState = controller.gameState, modifier = Modifier.fillMaxSize())
         }
 
@@ -28,4 +29,6 @@ fun RaceGameScreen() {
 
         Controls(controller)
     }
+
+
 }

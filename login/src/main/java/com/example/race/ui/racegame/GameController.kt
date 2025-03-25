@@ -37,7 +37,7 @@ class GameController {
 
     fun moveForward() {
         val radians = gameState.angle
-        val speed = 5f
+        val speed = 3f
 
         val deltaX = (-speed * kotlin.math.cos(radians)).toFloat()
         val deltaY = (-speed * kotlin.math.sin(radians)).toFloat()

@@ -19,6 +19,6 @@ fun Car(gameState: GameState, modifier: Modifier = Modifier) {
                 translationX = gameState.x,
                 translationY = gameState.y
             )
-            .scale(0.3f)
+            .scale(0.2f)
     )
 }
