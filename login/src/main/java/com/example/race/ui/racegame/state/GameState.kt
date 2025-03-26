@@ -1,4 +1,4 @@
-package com.example.race.ui.racegame
+package com.example.race.ui.racegame.state
 
 data class GameState(
     val x: Float = 0f,

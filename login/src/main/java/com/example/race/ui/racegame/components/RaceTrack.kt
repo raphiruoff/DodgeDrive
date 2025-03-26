@@ -1,4 +1,4 @@
-package com.example.race.ui.racegame
+package com.example.race.ui.racegame.components
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
