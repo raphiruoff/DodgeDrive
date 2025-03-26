@@ -7,18 +7,18 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import com.example.login.R
 import androidx.compose.ui.draw.scale
-import com.example.race.ui.racegame.state.GameState
+import com.example.race.ui.racegame.state.CarState
 
 @Composable
-fun Car(gameState: GameState, modifier: Modifier = Modifier) {
+fun Car(carState: CarState, modifier: Modifier = Modifier) {
     Image(
         painter = painterResource(id = R.drawable.car),
         contentDescription = "Auto",
         modifier = modifier
             .graphicsLayer(
-                rotationZ = Math.toDegrees(gameState.angle.toDouble()).toFloat(),
-                translationX = gameState.x,
-                translationY = gameState.y
+                rotationZ = Math.toDegrees(carState.angle.toDouble()).toFloat(),
+                translationX = carState.x,
+                translationY = carState.y
             )
             .scale(0.2f)
     )

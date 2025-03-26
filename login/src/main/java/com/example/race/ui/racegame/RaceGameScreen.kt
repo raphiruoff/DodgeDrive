@@ -26,7 +26,7 @@ fun RaceGameScreen() {
                 .fillMaxWidth()
         ) {
             RaceTrack(Modifier.fillMaxSize())
-            Car(gameState = controller.gameState, modifier = Modifier.fillMaxSize())
+            Car(carState = controller.carState, modifier = Modifier.fillMaxSize())
         }
 
         Spacer(modifier = Modifier.height(16.dp))
