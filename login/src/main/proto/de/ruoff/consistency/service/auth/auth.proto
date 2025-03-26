@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package de.ruoff.consistency.service.auth;
+
+option java_multiple_files = true;
+option java_package = "de.ruoff.consistency.service.auth"; // Einheitlich!
+
+service AuthService {
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc Login (LoginRequest) returns (LoginResponse);
+}
+
+message RegisterRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message RegisterResponse {
+  string message = 1;
+}
+
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string message = 1;
+}
