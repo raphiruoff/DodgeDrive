@@ -1,36 +1,26 @@
 package com.example.race.ui.racegame.components
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import com.example.race.ui.racegame.control.GameController
+import androidx.compose.ui.unit.dp
 
 @Composable
-fun Controls(controller: GameController) {
+fun Controls(onLeft: () -> Unit, onRight: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        HoldableButton(
-            onPressStart = { controller.startRotatingLeft() },
-            onPressEnd = { controller.stopRotating() }
-        ) {
-            Text("Left")
+        Button(onClick = onLeft) {
+            Text("⬅️ Links")
         }
-
-        HoldableButton(
-            onPressStart = { controller.startRotatingRight() },
-            onPressEnd = { controller.stopRotating() }
-        ) {
-            Text("Right")
-        }
-
-        HoldableButton(
-            onPressStart = { controller.startMovingForward() },
-            onPressEnd = { controller.stopMoving() }
-        ) {
-            Text("Forward")
+        Button(onClick = onRight) {
+            Text("➡️ Rechts")
         }
     }
 }
+

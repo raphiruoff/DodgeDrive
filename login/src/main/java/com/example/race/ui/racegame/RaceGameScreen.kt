@@ -1,38 +1,68 @@
 package com.example.race.ui.racegame
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.race.ui.racegame.components.Car
-import com.example.race.ui.racegame.components.Controls
 import com.example.race.ui.racegame.components.RaceTrack
-import com.example.race.ui.racegame.control.GameController
+import com.example.race.ui.racegame.state.CarState
 
 @Composable
 fun RaceGameScreen() {
-    val controller = remember { GameController() }
+    val carState = remember { mutableStateOf(CarState()) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Box(
+    Column(modifier = Modifier.fillMaxSize()) {
+        BoxWithConstraints(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
         ) {
-            RaceTrack(Modifier.fillMaxSize())
-            Car(carState = controller.carState, modifier = Modifier.fillMaxSize())
+            val screenWidth = constraints.maxWidth
+            val screenHeight = constraints.maxHeight
+
+            val carWidth = 48f // tatsächliche Auto-Breite in px
+            val moveStep = 20f
+            val offsetFix = 100f //Korrektur der Breite der Straße, 5x20
+
+            val streetLeft = screenWidth * 1f / 6f - offsetFix
+            val streetRight = screenWidth * 5f / 6f - carWidth - offsetFix
+
+            LaunchedEffect(screenWidth, screenHeight) {
+                val centerX = (streetLeft + streetRight) / 2f
+                val lowerY = screenHeight * 3f / 4f
+                carState.value = CarState(carX = centerX, carY = lowerY, angle = 0f)
+            }
+
+            RaceTrack()
+            Car(carState = carState.value)
+
+
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                Button(onClick = {
+                    carState.value = carState.value.copy(
+                        carX = (carState.value.carX - moveStep).coerceIn(streetLeft, streetRight)
+                    )
+                }) {
+                    Text("⬅️ Links")
+                }
+
+                Button(onClick = {
+                    carState.value = carState.value.copy(
+                        carX = (carState.value.carX + moveStep).coerceIn(streetLeft, streetRight)
+                    )
+                }) {
+                    Text("➡️ Rechts")
+                }
+            }
         }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Controls(controller)
     }
-
-
 }
