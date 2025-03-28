@@ -22,7 +22,7 @@ import kotlin.math.roundToInt
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontWeight
 
-// Kollisionsprüfung zwischen Auto und Hindernis (optional später nutzen)
+// Kollisionsprüfung zwischen Auto und Hindernis
 fun checkCollision(car: CarState, obstacle: Obstacle): Boolean {
     val carWidth = 48f
     val carHeight = 96f
@@ -36,7 +36,8 @@ fun checkCollision(car: CarState, obstacle: Obstacle): Boolean {
 fun RaceGameScreen() {
     val carState = remember { mutableStateOf(CarState()) }
     val obstacles = remember { mutableStateListOf<Obstacle>() }
-    val score = remember { mutableStateOf(0) } // Punktestand
+    val score = remember { mutableStateOf(0) }
+    val isGameOver = remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         BoxWithConstraints(
@@ -61,42 +62,45 @@ fun RaceGameScreen() {
                 carState.value = CarState(carX = centerX, carY = lowerY, angle = 0f)
             }
 
-            LaunchedEffect(Unit) {
-                while (true) {
-                    val laneX = listOf(
-                        screenWidth * 2f / 6f,
-                        screenWidth * 3f / 6f,
-                        screenWidth * 4f / 6f
-                    ).random()
+            // Hindernisse spawnen
+            if (!isGameOver.value) {
+                LaunchedEffect(Unit) {
+                    while (true) {
+                        val laneX = listOf(
+                            screenWidth * 2f / 6f,
+                            screenWidth * 3f / 6f,
+                            screenWidth * 4f / 6f
+                        ).random()
 
-                    obstacles.add(Obstacle(x = laneX, y = -50f))
-                    delay(2500L)
-                }
-            }
-
-            LaunchedEffect(Unit) {
-                while (true) {
-                    val iterator = obstacles.iterator()
-                    while (iterator.hasNext()) {
-                        val obstacle = iterator.next()
-                        obstacle.y += 8f
-
-                        if (checkCollision(carState.value, obstacle)) {
-                            println(" Kollision!")
-                        }
-
-                        if (obstacle.y > screenHeight) {
-                            iterator.remove()
-                            score.value += 1
-                        }
+                        obstacles.add(Obstacle(x = laneX, y = -50f))
+                        delay(2500L)
                     }
+                }
 
-                    delay(20L)
+                // Hindernisse bewegen und Score aktualisieren
+                LaunchedEffect(Unit) {
+                    while (true) {
+                        val iterator = obstacles.iterator()
+                        while (iterator.hasNext()) {
+                            val obstacle = iterator.next()
+                            obstacle.y += 8f
+
+                            if (checkCollision(carState.value, obstacle)) {
+                                isGameOver.value = true
+                            }
+
+                            if (obstacle.y > screenHeight) {
+                                iterator.remove()
+                                score.value += 1
+                            }
+                        }
+                        delay(20L)
+                    }
                 }
             }
 
+            // Strecke + Auto + Hindernisse
             ScrollingRaceTrack()
-
             Car(carState = carState.value)
 
             obstacles.forEach { obstacle ->
@@ -109,6 +113,7 @@ fun RaceGameScreen() {
                 )
             }
 
+            // Score-Anzeige
             Text(
                 text = "Score: ${score.value}",
                 fontSize = 28.sp,
@@ -119,28 +124,61 @@ fun RaceGameScreen() {
                 color = Color.White
             )
 
+            // Steuerung
+            if (!isGameOver.value) {
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(24.dp)
+                ) {
+                    Button(onClick = {
+                        carState.value = carState.value.copy(
+                            carX = (carState.value.carX - moveStep).coerceIn(streetLeft, streetRight)
+                        )
+                    }) {
+                        Text("⬅️ Links")
+                    }
 
-            // 🎮 Steuerung unten
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(24.dp)
-            ) {
-                Button(onClick = {
-                    carState.value = carState.value.copy(
-                        carX = (carState.value.carX - moveStep).coerceIn(streetLeft, streetRight)
-                    )
-                }) {
-                    Text("⬅️ Links")
+                    Button(onClick = {
+                        carState.value = carState.value.copy(
+                            carX = (carState.value.carX + moveStep).coerceIn(streetLeft, streetRight)
+                        )
+                    }) {
+                        Text("➡️ Rechts")
+                    }
                 }
+            }
 
-                Button(onClick = {
-                    carState.value = carState.value.copy(
-                        carX = (carState.value.carX + moveStep).coerceIn(streetLeft, streetRight)
+            // Game Over Overlay
+            if (isGameOver.value) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0x99000000)),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "💥 Game Over",
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
                     )
-                }) {
-                    Text("➡️ Rechts")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Score: ${score.value}",
+                        fontSize = 24.sp,
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Button(onClick = {
+                        obstacles.clear()
+                        score.value = 0
+                        isGameOver.value = false
+                    }) {
+                        Text("🔄 Neustart")
+                    }
                 }
             }
         }
