@@ -1,5 +1,6 @@
 package com.example.race.ui.racegame
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Button
@@ -8,8 +9,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import com.example.login.R
 import com.example.race.ui.racegame.components.Car
 import com.example.race.ui.racegame.components.Obstacle
 import com.example.race.ui.racegame.components.ScrollingRaceTrack
@@ -44,7 +47,7 @@ fun RaceGameScreen() {
                 carState.value = CarState(carX = centerX, carY = lowerY, angle = 0f)
             }
 
-            LaunchedEffect(Unit) {
+            LaunchedEffect(Unit) { //Spawn
                 while (true) {
                     val laneX = listOf(
                         screenWidth * 2f / 6f,
@@ -53,10 +56,10 @@ fun RaceGameScreen() {
                     ).random()
 
                     obstacles.add(
-                        Obstacle(x = laneX, y = -50f)
+                        Obstacle(x = laneX, y = -50f) // hindernisse starten "über" Bildschirm
                     )
 
-                    delay(1500L)
+                    delay(2500L)
                 }
             }
 
@@ -64,7 +67,7 @@ fun RaceGameScreen() {
                 while (true) {
                     obstacles.forEach { it.y += 8f }
                     obstacles.removeAll { it.y > screenHeight }
-                    delay(16L)
+                    delay(25L) // Geschwindigkeit
                 }
             }
 
@@ -73,11 +76,12 @@ fun RaceGameScreen() {
             Car(carState = carState.value)
 
             obstacles.forEach { obstacle ->
-                Box(
+                Image(
+                    painter = painterResource(id = R.drawable.obstacle),
+                    contentDescription = "Hindernis",
                     modifier = Modifier
                         .offset { IntOffset(obstacle.x.roundToInt(), obstacle.y.roundToInt()) }
                         .size(48.dp)
-                        .background(Color.Red)
                 )
             }
 
