@@ -19,11 +19,24 @@ import com.example.race.ui.racegame.components.ScrollingRaceTrack
 import com.example.race.ui.racegame.state.CarState
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
+
+// Kollisionsprüfung zwischen Auto und Hindernis (optional später nutzen)
+fun checkCollision(car: CarState, obstacle: Obstacle): Boolean {
+    val carWidth = 48f
+    val carHeight = 96f
+    return car.carX < obstacle.x + obstacle.width &&
+            car.carX + carWidth > obstacle.x &&
+            car.carY < obstacle.y + obstacle.height &&
+            car.carY + carHeight > obstacle.y
+}
 
 @Composable
 fun RaceGameScreen() {
     val carState = remember { mutableStateOf(CarState()) }
     val obstacles = remember { mutableStateListOf<Obstacle>() }
+    val score = remember { mutableStateOf(0) } // Punktestand
 
     Column(modifier = Modifier.fillMaxSize()) {
         BoxWithConstraints(
@@ -41,13 +54,14 @@ fun RaceGameScreen() {
             val streetLeft = screenWidth * 1f / 6f - offsetFix
             val streetRight = screenWidth * 5f / 6f - carWidth - offsetFix
 
+            // Auto initial mittig unten positionieren
             LaunchedEffect(screenWidth, screenHeight) {
                 val centerX = (streetLeft + streetRight) / 2f
                 val lowerY = screenHeight * 3f / 4f
                 carState.value = CarState(carX = centerX, carY = lowerY, angle = 0f)
             }
 
-            LaunchedEffect(Unit) { //Spawn
+            LaunchedEffect(Unit) {
                 while (true) {
                     val laneX = listOf(
                         screenWidth * 2f / 6f,
@@ -55,19 +69,29 @@ fun RaceGameScreen() {
                         screenWidth * 4f / 6f
                     ).random()
 
-                    obstacles.add(
-                        Obstacle(x = laneX, y = -50f) // hindernisse starten "über" Bildschirm
-                    )
-
+                    obstacles.add(Obstacle(x = laneX, y = -50f))
                     delay(2500L)
                 }
             }
 
             LaunchedEffect(Unit) {
                 while (true) {
-                    obstacles.forEach { it.y += 8f }
-                    obstacles.removeAll { it.y > screenHeight }
-                    delay(25L) // Geschwindigkeit
+                    val iterator = obstacles.iterator()
+                    while (iterator.hasNext()) {
+                        val obstacle = iterator.next()
+                        obstacle.y += 8f
+
+                        if (checkCollision(carState.value, obstacle)) {
+                            println(" Kollision!")
+                        }
+
+                        if (obstacle.y > screenHeight) {
+                            iterator.remove()
+                            score.value += 1
+                        }
+                    }
+
+                    delay(20L)
                 }
             }
 
@@ -85,6 +109,18 @@ fun RaceGameScreen() {
                 )
             }
 
+            Text(
+                text = "Score: ${score.value}",
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp),
+                color = Color.White
+            )
+
+
+            // 🎮 Steuerung unten
             Row(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
