@@ -8,7 +8,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.race.ui.racegame.components.Car
-import com.example.race.ui.racegame.components.RaceTrack
+import com.example.race.ui.racegame.components.ScrollingRaceTrack
 import com.example.race.ui.racegame.state.CarState
 
 @Composable
@@ -37,7 +37,7 @@ fun RaceGameScreen() {
                 carState.value = CarState(carX = centerX, carY = lowerY, angle = 0f)
             }
 
-            RaceTrack()
+            ScrollingRaceTrack()
             Car(carState = carState.value)
 
 
