@@ -20,7 +20,7 @@ fun RaceTrack(modifier: Modifier = Modifier) {
                 .weight(1f)
         ) {
             Image(
-                painter = painterResource(R.drawable.road_left),
+                painter = painterResource(R.drawable.wiese_links_custom),
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
@@ -44,7 +44,7 @@ fun RaceTrack(modifier: Modifier = Modifier) {
                 .weight(1f)
         ) {
             Image(
-                painter = painterResource(R.drawable.road_right),
+                painter = painterResource(R.drawable.wiese_rechts_custom),
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
