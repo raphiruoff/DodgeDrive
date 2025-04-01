@@ -30,7 +30,7 @@ fun AppNavigation(navController: NavHostController) {
         }
 
         composable("racegame") {
-            RaceGameScreen()
+            RaceGameScreen(navController)
         }
     }
 }

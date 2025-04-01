@@ -25,4 +25,29 @@ class AuthViewModel : ViewModel() {
             _message.value = authClient.sendPing()
         }
     }
+
+    fun login(username: String, password: String, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            try {
+                val message = authClient.login(username, password)
+                _message.value = message
+                if (message.contains("erfolgreich", ignoreCase = true)) {
+                    onSuccess()
+                }
+            } catch (e: Exception) {
+                _message.value = "Fehler beim Login: ${e.message}"
+            }
+        }
+    }
+
+    fun register(username: String, password: String) {
+        viewModelScope.launch {
+            try {
+                val message = authClient.register(username, password)
+                _message.value = message
+            } catch (e: Exception) {
+                _message.value = "Fehler bei Registrierung: ${e.message}"
+            }
+        }
+    }
 }

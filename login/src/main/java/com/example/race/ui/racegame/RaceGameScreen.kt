@@ -21,6 +21,8 @@ import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontWeight
+import androidx.navigation.NavHostController
+import com.example.race.navigation.Routes
 
 // Kollisionsprüfung zwischen Auto und Hindernis
 fun checkCollision(car: CarState, obstacle: Obstacle): Boolean {
@@ -33,7 +35,7 @@ fun checkCollision(car: CarState, obstacle: Obstacle): Boolean {
 }
 
 @Composable
-fun RaceGameScreen() {
+fun RaceGameScreen(navController: NavHostController) {
     val carState = remember { mutableStateOf(CarState()) }
     val obstacles = remember { mutableStateListOf<Obstacle>() }
     val score = remember { mutableStateOf(0) }
@@ -179,6 +181,14 @@ fun RaceGameScreen() {
                     }) {
                         Text("🔄 Neustart")
                     }
+                    Button(onClick = {
+                        navController.navigate(Routes.SESSION) {
+                            popUpTo(Routes.RACEGAME) { inclusive = true }
+                        }
+                    }) {
+                        Text("🏠 Zurück zum Hauptmenü")
+                    }
+
                 }
             }
         }
