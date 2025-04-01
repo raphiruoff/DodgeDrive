@@ -7,7 +7,10 @@ import io.grpc.Status
 import io.grpc.StatusRuntimeException
 
 @GrpcService
-class AuthController(val authRepository: AuthRepository):AuthServiceGrpc.AuthServiceImplBase() {
+class AuthController(
+    val authRepository: AuthRepository,
+    private val jwtService: JwtService
+):AuthServiceGrpc.AuthServiceImplBase() {
     private val encoder = BCryptPasswordEncoder()
 
     fun hashPassword(password: String): String {
@@ -69,9 +72,15 @@ class AuthController(val authRepository: AuthRepository):AuthServiceGrpc.AuthSer
                 return
             }
 
+            val token = jwtService.generateToken(request.username)
+
+
+
             val response = LoginResponse.newBuilder()
                 .setMessage("Login erfolgreich!")
+                .setToken(token)
                 .build()
+
 
             responseObserver.onNext(response)
             responseObserver.onCompleted()

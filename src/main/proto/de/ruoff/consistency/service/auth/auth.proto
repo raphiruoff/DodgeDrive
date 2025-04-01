@@ -26,4 +26,5 @@ message LoginRequest {
 
 message LoginResponse {
   string message = 1;
+  string token = 2;
 }

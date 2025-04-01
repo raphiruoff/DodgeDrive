@@ -1,5 +1,6 @@
 package com.example.race.ui.login
 
+import androidx.compose.runtime.*
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.race.data.network.AuthClient
@@ -13,6 +14,9 @@ class AuthViewModel : ViewModel() {
 
     private val _message = MutableStateFlow("")
     val message = _message.asStateFlow()
+
+    var jwtToken by mutableStateOf<String?>(null)
+        private set
 
     fun testGrpcConnection() {
         viewModelScope.launch {
@@ -29,9 +33,10 @@ class AuthViewModel : ViewModel() {
     fun login(username: String, password: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
             try {
-                val message = authClient.login(username, password)
-                _message.value = message
-                if (message.contains("erfolgreich", ignoreCase = true)) {
+                val result = authClient.login(username, password)
+                _message.value = result.message
+                jwtToken = result.token
+                if (result.message.contains("erfolgreich", ignoreCase = true)) {
                     onSuccess()
                 }
             } catch (e: Exception) {

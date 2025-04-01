@@ -1,6 +1,7 @@
 package com.example.race.data.network
 
 import android.util.Log
+import com.example.race.model.LoginResult
 import de.ruoff.consistency.service.auth.AuthServiceGrpc
 import de.ruoff.consistency.service.auth.LoginRequest
 import de.ruoff.consistency.service.auth.RegisterRequest
@@ -13,15 +14,20 @@ class AuthClient : BaseClient() {
     private val pingStub = PingServiceGrpc.newBlockingStub(channel)
     private val TAG = "AuthClient"
 
-    fun login(username: String, password: String): String {
+    fun login(username: String, password: String): LoginResult {
         val request = LoginRequest.newBuilder()
             .setUsername(username)
             .setPassword(password)
             .build()
 
         val response = authStub.login(request)
-        return response.message
+
+        return LoginResult(
+            message = response.message,
+            token = response.token
+        )
     }
+
 
     fun register(username: String, password: String): String {
         val request = RegisterRequest.newBuilder()
