@@ -1,32 +1,61 @@
 package com.example.race.ui.session
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 @Composable
 fun SessionScreen(
-    onNavigateToRaceGame: () -> Unit
+    onNavigateToRaceGame: () -> Unit,
+    onManageFriends: () -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Gegen wen möchtest du ein Rennen fahren?",
+            text = "🏁 Willkommen im Race Hub!",
             style = MaterialTheme.typography.headlineMedium
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Was möchtest du tun?",
+            fontSize = 18.sp
+        )
 
         Button(
-            onClick = { onNavigateToRaceGame() },
-            modifier = Modifier.fillMaxWidth()
+            onClick = { onManageFriends() },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
         ) {
-            Text("Spiel starten")
+            Text("👥 Freunde verwalten")
+        }
+
+        Button(
+            onClick = { /* TODO: Session starten Logik */ },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text("🎯 Neue Session starten")
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        Button(
+            onClick = onNavigateToRaceGame,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            enabled = true // später deaktivieren und nru wenn 2 Spieler da sind
+        ) {
+            Text("🚗 Spiel starten")
         }
     }
 }
