@@ -7,12 +7,19 @@ import de.ruoff.consistency.service.auth.LoginRequest
 import de.ruoff.consistency.service.auth.RegisterRequest
 import de.ruoff.consistency.service.ping.PingRequest
 import de.ruoff.consistency.service.ping.PingServiceGrpc
+import io.grpc.ClientInterceptors
 
 class AuthClient : BaseClient() {
 
-    private val authStub = AuthServiceGrpc.newBlockingStub(channel)
-    private val pingStub = PingServiceGrpc.newBlockingStub(channel)
     private val TAG = "AuthClient"
+
+    // Interceptor + Kanal
+    private val jwtInterceptor = JwtClientInterceptor { TokenHolder.jwtToken }
+    private val interceptedChannel = ClientInterceptors.intercept(channel, jwtInterceptor)
+
+    // gRPC-Stubs mit JWT-Support
+    private val authStub = AuthServiceGrpc.newBlockingStub(interceptedChannel)
+    private val pingStub = PingServiceGrpc.newBlockingStub(interceptedChannel)
 
     fun login(username: String, password: String): LoginResult {
         val request = LoginRequest.newBuilder()
@@ -22,12 +29,14 @@ class AuthClient : BaseClient() {
 
         val response = authStub.login(request)
 
-        return LoginResult(
+        val result = LoginResult(
             message = response.message,
             token = response.token
         )
-    }
 
+        TokenHolder.jwtToken = result.token
+        return result
+    }
 
     fun register(username: String, password: String): String {
         val request = RegisterRequest.newBuilder()

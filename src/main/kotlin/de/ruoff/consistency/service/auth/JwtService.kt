@@ -1,31 +1,31 @@
 package de.ruoff.consistency.service.auth
 
+import io.jsonwebtoken.security.Keys
 import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.SignatureAlgorithm
-import io.jsonwebtoken.security.Keys
+import io.jsonwebtoken.Claims
 import org.springframework.stereotype.Component
-import java.util.Date
+import java.util.*
+import javax.crypto.SecretKey
 
 @Component
 class JwtService {
-    private val key = Keys.secretKeyFor(SignatureAlgorithm.HS256)
+
+
+    private val secretKey: SecretKey = Keys.hmacShaKeyFor("my-super-secret-key".toByteArray())
+    private val expirationTime = 60 * 60 * 1000L // 1 Stunde
 
     fun generateToken(username: String): String {
         return Jwts.builder()
-            .setSubject(username)
-            .setIssuedAt(Date())
-            .setExpiration(Date(System.currentTimeMillis() + 1000 * 60 * 60)) // 1 Stunde gültig
-            .signWith(key)
-            .compact()
+            .setSubject(username) //für wen ist token
+            .setIssuedAt(Date()) // wird erstellt
+            .setExpiration(Date(System.currentTimeMillis() + expirationTime))
+            .signWith(secretKey, SignatureAlgorithm.HS256)
+            .compact() // als String zurückgebne
     }
 
-    fun validateToken(token: String): Boolean {
-        return try {
-            Jwts.parserBuilder().setSigningKey(key).build()
-                .parseClaimsJws(token)
-            true
-        } catch (e: Exception) {
-            false
-        }
-    }
+
+
+
+
 }

@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "consistency-service"
+rootProject.name = "DodgeDrive"
 include(":login")
