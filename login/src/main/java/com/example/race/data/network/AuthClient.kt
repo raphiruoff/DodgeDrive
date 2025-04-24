@@ -1,23 +1,52 @@
 package com.example.race.data.network
 
 import android.util.Log
+import com.example.race.model.LoginResult
+import de.ruoff.consistency.service.auth.AuthServiceGrpc
+import de.ruoff.consistency.service.auth.LoginRequest
+import de.ruoff.consistency.service.auth.RegisterRequest
 import de.ruoff.consistency.service.ping.PingRequest
 import de.ruoff.consistency.service.ping.PingServiceGrpc
-import io.grpc.ManagedChannel
-import io.grpc.okhttp.OkHttpChannelBuilder
+import io.grpc.ClientInterceptors
 
-class AuthClient {
+class AuthClient : BaseClient() {
 
     private val TAG = "AuthClient"
 
-    private val channel: ManagedChannel by lazy {
-        Log.d(TAG, "Initialisiere gRPC-Channel zu 10.0.2.2:9090")
-        OkHttpChannelBuilder.forAddress("10.0.2.2", 9090)
-            .usePlaintext()
+    // Interceptor + Kanal
+    private val jwtInterceptor = JwtClientInterceptor { TokenHolder.jwtToken }
+    private val interceptedChannel = ClientInterceptors.intercept(channel, jwtInterceptor)
+
+    // gRPC-Stubs mit JWT-Support
+    private val authStub = AuthServiceGrpc.newBlockingStub(interceptedChannel)
+    private val pingStub = PingServiceGrpc.newBlockingStub(interceptedChannel)
+
+    fun login(username: String, password: String): LoginResult {
+        val request = LoginRequest.newBuilder()
+            .setUsername(username)
+            .setPassword(password)
             .build()
+
+        val response = authStub.login(request)
+
+        val result = LoginResult(
+            message = response.message,
+            token = response.token
+        )
+
+        TokenHolder.jwtToken = result.token
+        return result
     }
 
-    private val pingStub = PingServiceGrpc.newBlockingStub(channel)
+    fun register(username: String, password: String): String {
+        val request = RegisterRequest.newBuilder()
+            .setUsername(username)
+            .setPassword(password)
+            .build()
+
+        val response = authStub.register(request)
+        return response.message
+    }
 
     fun testGrpcConnection(): String {
         return try {
