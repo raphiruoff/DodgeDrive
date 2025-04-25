@@ -4,22 +4,23 @@ import io.grpc.stub.StreamObserver
 import org.springframework.grpc.server.service.GrpcService
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import io.grpc.Status
-import io.grpc.StatusRuntimeException
+import de.ruoff.consistency.service.profile.ProfileRepository
+import de.ruoff.consistency.service.profile.ProfileModel
 
 @GrpcService
 class AuthController(
     val authRepository: AuthRepository,
-    private val jwtService: JwtService
-):AuthServiceGrpc.AuthServiceImplBase() {
+    private val jwtService: JwtService,
+    private val profileRepository: ProfileRepository
+) : AuthServiceGrpc.AuthServiceImplBase() {
+
     private val encoder = BCryptPasswordEncoder()
 
-    fun hashPassword(password: String): String {
-        return encoder.encode(password)
-    }
+    fun hashPassword(password: String): String = encoder.encode(password)
 
-    fun verifyPassword (plainPassword: String, hashedPassword: String): Boolean {
-        return encoder.matches(plainPassword, hashedPassword)
-    }
+    fun verifyPassword(plainPassword: String, hashedPassword: String): Boolean =
+        encoder.matches(plainPassword, hashedPassword)
+
     override fun register(request: RegisterRequest, responseObserver: StreamObserver<RegisterResponse>) {
         try {
             if (authRepository.existsByUsername(request.username)) {
@@ -33,6 +34,14 @@ class AuthController(
             val hashedPassword = hashPassword(request.password)
             val user = AuthModel(username = request.username, password = hashedPassword)
             authRepository.save(user)
+
+            // Neues Profil automatisch anlegen
+            val profile = ProfileModel(
+                username = request.username,
+                displayName = request.username,
+                bio = ""
+            )
+            profileRepository.save(profile)
 
             val response = RegisterResponse.newBuilder()
                 .setMessage("Registrierung erfolgreich")
@@ -74,13 +83,10 @@ class AuthController(
 
             val token = jwtService.generateToken(request.username)
 
-
-
             val response = LoginResponse.newBuilder()
                 .setMessage("Login erfolgreich!")
                 .setToken(token)
                 .build()
-
 
             responseObserver.onNext(response)
             responseObserver.onCompleted()
@@ -92,9 +98,4 @@ class AuthController(
             )
         }
     }
-
-
-
-
-
 }

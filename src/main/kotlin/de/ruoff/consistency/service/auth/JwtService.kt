@@ -12,7 +12,9 @@ import javax.crypto.SecretKey
 class JwtService {
 
 
-    private val secretKey: SecretKey = Keys.hmacShaKeyFor("my-super-secret-key".toByteArray())
+    private val secretKey: SecretKey = Keys.hmacShaKeyFor(
+        "my-super-secure-key-1234567890123456".toByteArray()
+    )
     private val expirationTime = 60 * 60 * 1000L // 1 Stunde
 
     fun generateToken(username: String): String {
