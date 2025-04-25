@@ -16,21 +16,26 @@ object Routes {
     const val FRIENDS = "friends"
 }
 
-
-
 @Composable
 fun AppNavigation(navController: NavHostController) {
     NavHost(navController = navController, startDestination = Routes.LOGIN) {
         composable(Routes.LOGIN) {
             LoginScreen(onNavigateToSession = {
-                navController.navigate(Routes.SESSION)
+                navController.navigate(Routes.SESSION) {
+                    popUpTo(Routes.LOGIN) { inclusive = true }
+                }
             })
         }
 
         composable(Routes.SESSION) {
             SessionScreen(
                 onNavigateToRaceGame = { navController.navigate(Routes.RACEGAME) },
-                onManageFriends = { navController.navigate(Routes.FRIENDS) } // neue Route
+                onManageFriends = { navController.navigate(Routes.FRIENDS) },
+                onLogout = {
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(0) { inclusive = true } // kompletter Stack-Reset
+                    }
+                }
             )
         }
 
@@ -43,7 +48,5 @@ fun AppNavigation(navController: NavHostController) {
                 navController.popBackStack(Routes.SESSION, inclusive = false)
             })
         }
-
     }
 }
-

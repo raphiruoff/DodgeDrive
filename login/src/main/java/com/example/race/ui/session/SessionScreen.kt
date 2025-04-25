@@ -14,7 +14,8 @@ import com.example.race.data.network.TokenHolder
 @Composable
 fun SessionScreen(
     onNavigateToRaceGame: () -> Unit,
-    onManageFriends: () -> Unit
+    onManageFriends: () -> Unit,
+    onLogout: () -> Unit
 ) {
     val username = remember { TokenUtils.decodeUsername(TokenHolder.jwtToken) }
 
@@ -60,6 +61,18 @@ fun SessionScreen(
             enabled = true
         ) {
             Text("🚗 Spiel starten")
+        }
+
+        Button(
+            onClick = {
+                TokenHolder.jwtToken = null
+                onLogout()
+            },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+        ) {
+            Text("🚪 Logout")
         }
     }
 }
