@@ -77,14 +77,28 @@ fun FriendsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(requester)
-                    Button(onClick = {
-                        username?.let { currentUser ->
-                            infoMessage = friendClient.acceptRequest(requester, currentUser)
-                            pendingRequests = friendClient.getPendingRequests(currentUser)
-                            friends = friendClient.getFriends(currentUser)
+                    Row {
+                        // Akzeptieren Button
+                        Button(onClick = {
+                            username?.let { currentUser ->
+                                infoMessage = friendClient.acceptRequest(requester, currentUser)
+                                pendingRequests = friendClient.getPendingRequests(currentUser)
+                                friends = friendClient.getFriends(currentUser)
+                            }
+                        }) {
+                            Text("Annehmen")
                         }
-                    }) {
-                        Text("Annehmen")
+
+                        // Ablehnen Button
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(onClick = {
+                            username?.let { currentUser ->
+                                infoMessage = friendClient.declineRequest(requester, currentUser)
+                                pendingRequests = friendClient.getPendingRequests(currentUser)
+                            }
+                        }) {
+                            Text("Ablehnen")
+                        }
                     }
                 }
             }

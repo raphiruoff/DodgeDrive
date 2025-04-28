@@ -30,4 +30,9 @@ class FriendListClient {
         val request = Friends.FriendRequest.newBuilder().setFromUsername(from).setToUsername(to).build()
         return stub.acceptRequest(request).message
     }
+
+    fun declineRequest(from: String, to: String): String {
+        val request = Friends.FriendRequest.newBuilder().setFromUsername(from).setToUsername(to).build()
+        return stub.declineRequest(request).message
+    }
 }

@@ -2,7 +2,6 @@ package de.ruoff.consistency.service.friends
 
 import jakarta.persistence.*
 
-
 @Entity
 @Table(name = "friends")
 data class FriendsModel(
@@ -19,6 +18,5 @@ data class FriendsModel(
     @Column(nullable = false)
     val accepted: Boolean = false
 ) {
-    // Standardkonstruktor (wird von Hibernate benötigt)
     constructor() : this(0, "", "", false)
 }

@@ -4,6 +4,7 @@ package de.ruoff.consistency.service.friends;
 service FriendService {
     rpc SendRequest(FriendRequest) returns (FriendResponse);
     rpc AcceptRequest(FriendRequest) returns (FriendResponse);
+    rpc DeclineRequest(FriendRequest) returns (FriendResponse);
     rpc GetFriends(UserIdRequest) returns (FriendListResponse);
     rpc GetPendingRequests(UserIdRequest) returns (PendingRequestListResponse);
 }
