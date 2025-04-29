@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package session;
+package de.ruoff.consistency.service.session;
 
 service SessionService {
     rpc CreateSession (CreateSessionRequest) returns (CreateSessionResponse);

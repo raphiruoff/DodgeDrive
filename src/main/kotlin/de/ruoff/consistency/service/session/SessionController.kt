@@ -1,6 +1,5 @@
 package de.ruoff.consistency.service.session
 
-import session.*
 import io.grpc.stub.StreamObserver
 import org.springframework.grpc.server.service.GrpcService
 
