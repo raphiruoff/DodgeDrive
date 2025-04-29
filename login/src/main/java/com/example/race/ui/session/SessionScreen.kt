@@ -1,78 +1,104 @@
 package com.example.race.ui.session
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.race.common.TokenUtils
+import com.example.race.data.network.FriendListClient
 import com.example.race.data.network.TokenHolder
+import kotlinx.coroutines.launch
 
 @Composable
 fun SessionScreen(
     onNavigateToRaceGame: () -> Unit,
-    onManageFriends: () -> Unit,
-    onLogout: () -> Unit
+    onNavigateBack: () -> Unit
 ) {
     val username = remember { TokenUtils.decodeUsername(TokenHolder.jwtToken) }
+    val friendClient = remember { FriendListClient() }
+    val coroutineScope = rememberCoroutineScope()
+
+    var friends by remember { mutableStateOf<List<String>>(emptyList()) }
+    var invitedFriends by remember { mutableStateOf<List<String>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(false) }
+    var infoMessage by remember { mutableStateOf("") }
+
+    LaunchedEffect(username) {
+        username?.let {
+            try {
+                friends = friendClient.getFriends(it)
+            } catch (e: Exception) {
+                infoMessage = "Fehler beim Laden der Freunde: ${e.message}"
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text(
-            text = "🏁 Willkommen, $username!",
-            style = MaterialTheme.typography.headlineMedium
-        )
+        Text("🎯 Session erstellen", style = MaterialTheme.typography.headlineMedium)
 
-        Text(
-            text = "Was möchtest du tun?",
-            fontSize = 18.sp
-        )
-
-        Button(
-            onClick = { onManageFriends() },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp)
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.weight(1f)
         ) {
-            Text("👥 Freunde verwalten")
+            items(friends) { friend ->
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(friend)
+
+                        if (invitedFriends.contains(friend)) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        } else {
+                            Button(onClick = {
+                                coroutineScope.launch {
+                                    invitedFriends = invitedFriends + friend
+                                    isLoading = true
+                                    // TODO: Später echte gRPC-Einladung senden
+                                    kotlinx.coroutines.delay(3000) // Simulation
+                                    isLoading = false
+                                }
+                            }) {
+                                Text("Einladen")
+                            }
+                        }
+                    }
+                }
+            }
         }
 
-        Button(
-            onClick = { /* TODO: Session starten Logik */ },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Text("🎯 Neue Session starten")
+        if (infoMessage.isNotBlank()) {
+            Text(infoMessage)
         }
 
-        Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.height(16.dp))
 
         Button(
             onClick = onNavigateToRaceGame,
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            enabled = true
+            enabled = invitedFriends.isNotEmpty()
         ) {
             Text("🚗 Spiel starten")
         }
 
         Button(
-            onClick = {
-                TokenHolder.jwtToken = null
-                onLogout()
-            },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+            onClick = onNavigateBack,
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Text("🚪 Logout")
+            Text("⬅️ Zurück")
         }
     }
 }

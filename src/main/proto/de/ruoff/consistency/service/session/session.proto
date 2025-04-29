@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package session;
+
+service SessionService {
+    rpc CreateSession (CreateSessionRequest) returns (CreateSessionResponse);
+    rpc JoinSession (JoinSessionRequest) returns (JoinSessionResponse);
+    rpc GetSession (GetSessionRequest) returns (GetSessionResponse);
+    rpc LeaveSession (LeaveSessionRequest) returns (LeaveSessionResponse);
+}
+
+message CreateSessionRequest {
+    string playerA = 1;
+}
+
+message CreateSessionResponse {
+    string sessionId = 1;
+}
+
+message JoinSessionRequest {
+    string sessionId = 1;
+    string playerB = 2;
+}
+
+message JoinSessionResponse {
+    bool success = 1;
+}
+
+message GetSessionRequest {
+    string sessionId = 1;
+}
+
+message GetSessionResponse {
+    string playerA = 1;
+    string playerB = 2;
+    string status = 3;
+}
+
+message LeaveSessionRequest {
+    string sessionId = 1;
+    string username = 2;
+}
+
+message LeaveSessionResponse {
+    bool success = 1;
+}

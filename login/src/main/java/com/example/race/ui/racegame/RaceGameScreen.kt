@@ -182,7 +182,7 @@ fun RaceGameScreen(navController: NavHostController) {
                         Text("🔄 Neustart")
                     }
                     Button(onClick = {
-                        navController.navigate(Routes.SESSION) {
+                        navController.navigate(Routes.MAIN) {
                             popUpTo(Routes.RACEGAME) { inclusive = true }
                         }
                     }) {
