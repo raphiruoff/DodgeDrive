@@ -7,6 +7,8 @@ service SessionService {
     rpc JoinSession (JoinSessionRequest) returns (JoinSessionResponse);
     rpc GetSession (GetSessionRequest) returns (GetSessionResponse);
     rpc LeaveSession (LeaveSessionRequest) returns (LeaveSessionResponse);
+    rpc GetOpenSessionForPlayer (PlayerRequest) returns (GetSessionResponse);
+    rpc InvitePlayer (InvitePlayerRequest) returns (InvitePlayerResponse);
 }
 
 message CreateSessionRequest {
@@ -31,9 +33,10 @@ message GetSessionRequest {
 }
 
 message GetSessionResponse {
-    string playerA = 1;
-    string playerB = 2;
-    string status = 3;
+    string sessionId = 1;
+    string playerA = 2;
+    string playerB = 3;
+    string status = 4;
 }
 
 message LeaveSessionRequest {
@@ -42,5 +45,18 @@ message LeaveSessionRequest {
 }
 
 message LeaveSessionResponse {
+    bool success = 1;
+}
+
+message PlayerRequest {
+    string player = 1;
+}
+
+message InvitePlayerRequest {
+    string requester = 1;
+    string receiver = 2;
+}
+
+message InvitePlayerResponse {
     bool success = 1;
 }

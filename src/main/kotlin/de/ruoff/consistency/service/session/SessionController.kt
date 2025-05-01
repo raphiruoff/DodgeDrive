@@ -9,6 +9,7 @@ class SessionController(
 ) : SessionServiceGrpc.SessionServiceImplBase() {
 
     override fun createSession(request: Session.CreateSessionRequest, responseObserver: StreamObserver<Session.CreateSessionResponse>) {
+        println(">> createSession wurde aufgerufen mit ${request.playerA}")
         val session = sessionService.createSession(request.playerA)
         val response = Session.CreateSessionResponse.newBuilder()
             .setSessionId(session.sessionId)
@@ -47,5 +48,46 @@ class SessionController(
         responseObserver.onNext(response)
         responseObserver.onCompleted()
     }
+
+    override fun getOpenSessionForPlayer(
+        request: Session.PlayerRequest,
+        responseObserver: StreamObserver<Session.GetSessionResponse>
+    ) {
+        val session = sessionService.getOpenSessionForPlayer(request.player)
+        val responseBuilder = Session.GetSessionResponse.newBuilder()
+        session?.let {
+            responseBuilder.sessionId = it.sessionId
+            responseBuilder.playerA = it.playerA
+            responseBuilder.playerB = it.playerB ?: ""
+            responseBuilder.status = it.status.name
+        }
+        responseObserver.onNext(responseBuilder.build())
+        responseObserver.onCompleted()
+    }
+    override fun invitePlayer(
+        request: Session.InvitePlayerRequest,
+        responseObserver: StreamObserver<Session.InvitePlayerResponse>
+    ) {
+        println(">> invitePlayer wurde aufgerufen mit ${request.requester} lädt ${request.receiver} ein")
+        try {
+            val success = sessionService.invitePlayer(request.requester, request.receiver)
+            val response = Session.InvitePlayerResponse.newBuilder()
+                .setSuccess(success)
+                .build()
+            responseObserver.onNext(response)
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            println("Fehler beim Einladen: ${e.message}")
+            val error = io.grpc.Status.INTERNAL
+                .withDescription("Fehler beim Einladen: ${e.message}")
+                .withCause(e)
+                .asRuntimeException()
+            responseObserver.onError(error)
+        }
+    }
+
+
+
+
 
 }

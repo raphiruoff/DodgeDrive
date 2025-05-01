@@ -1,14 +1,19 @@
 package de.ruoff.consistency.service.session
+import com.fasterxml.jackson.annotation.JsonTypeInfo
+import com.fasterxml.jackson.annotation.JsonCreator
+import com.fasterxml.jackson.annotation.JsonProperty
 
 enum class SessionStatus {
     WAITING_FOR_PLAYER,
+    WAITING_FOR_START,
     ACTIVE,
     FINISHED
 }
 
-data class GameSession(
-    val sessionId: String,
-    val playerA: String,
-    var playerB: String? = null,
-    var status: SessionStatus = SessionStatus.WAITING_FOR_PLAYER
+@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY, property = "@class")
+data class GameSession @JsonCreator constructor(
+    @JsonProperty("sessionId") val sessionId: String,
+    @JsonProperty("playerA") val playerA: String,
+    @JsonProperty("playerB") var playerB: String? = null,
+    @JsonProperty("status") var status: SessionStatus = SessionStatus.WAITING_FOR_PLAYER
 )

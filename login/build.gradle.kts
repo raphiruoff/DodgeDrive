@@ -57,13 +57,10 @@ dependencies {
     implementation("io.grpc:grpc-okhttp:1.58.0")
     implementation("io.grpc:grpc-protobuf:1.58.0")
     implementation("io.grpc:grpc-stub:1.58.0")
-    implementation("com.google.protobuf:protobuf-java:3.23.4")  // Gleiche Version wie im Backend
+    implementation("com.google.protobuf:protobuf-java:3.23.4")
 
     implementation("javax.annotation:javax.annotation-api:1.3.2")
     implementation("androidx.navigation:navigation-compose:2.7.7")
-
-
-
 
     // AndroidX Core & Lifecycle
     implementation("androidx.core:core-ktx:1.12.0")
@@ -71,29 +68,24 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.8.2")
 
     // Jetpack Compose BOM
-    implementation(platform("androidx.compose:compose-bom:2024.01.00"))
+    implementation(platform("androidx.compose:compose-bom:2024.03.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.activity:activity-ktx:1.10.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
 
     // Testing
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
-    androidTestImplementation(platform("androidx.compose:compose-bom:2024.01.00"))
+    androidTestImplementation(platform("androidx.compose:compose-bom:2024.03.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
 
     // Debug-Tools
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
-
-    //ViewModel
-    implementation(platform("androidx.compose:compose-bom:2024.01.00"))
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.material3:material3")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
 }
 
 protobuf {
