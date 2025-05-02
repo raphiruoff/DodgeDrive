@@ -109,7 +109,7 @@ fun SessionScreen(
                         when {
                             acceptedFriends.contains(friend) -> {
                                 Button(onClick = {}, enabled = false) {
-                                    Text("Hat angenommen ✅")
+                                    Text("✅")
                                 }
                             }
 
