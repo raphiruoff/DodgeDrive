@@ -29,6 +29,7 @@ fun SessionScreen(
     var friends by remember { mutableStateOf<List<String>>(emptyList()) }
     val invitedFriends = remember { mutableStateListOf<String>() }
     var sessionId by remember { mutableStateOf<String?>(null) }
+    var sessionPartner by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var infoMessage by remember { mutableStateOf("") }
     var invitations by remember { mutableStateOf<List<de.ruoff.consistency.service.session.Session.Invitation>>(emptyList()) }
@@ -45,9 +46,7 @@ fun SessionScreen(
             }
 
             invitations = withContext(Dispatchers.IO) {
-                sessionClient.getInvitations(username).also {
-                    Log.d("SessionScreen", "Einladungen für $username: $it")
-                }
+                sessionClient.getInvitations(username)
             }
 
             if (invitations.isNotEmpty()) {
@@ -109,7 +108,6 @@ fun SessionScreen(
                                         }
 
                                         if (sessionId == null) {
-                                            // Session wird erst bei Einladung erstellt
                                             sessionId = withContext(Dispatchers.IO) {
                                                 sessionClient.createSession(username)
                                             }
@@ -125,6 +123,8 @@ fun SessionScreen(
                                             if (!success) {
                                                 infoMessage = "Einladung an $friend fehlgeschlagen"
                                                 invitedFriends.remove(friend)
+                                            } else {
+                                                sessionPartner = friend
                                             }
                                         } catch (e: Exception) {
                                             infoMessage = "Fehler beim Einladen:\n${e::class.simpleName}: ${e.message}"
@@ -168,8 +168,18 @@ fun SessionScreen(
                                     }
                                     if (accepted) {
                                         sessionId = invitation.sessionId
-                                        infoMessage = "Einladung angenommen. Session ID: ${invitation.sessionId}"
                                         invitations = emptyList()
+
+                                        val session = withContext(Dispatchers.IO) {
+                                            sessionClient.getSession(invitation.sessionId)
+                                        }
+
+                                        session?.let {
+                                            sessionPartner = if (it.playerA == username) it.playerB else it.playerA
+                                            infoMessage = "Du bist in einer Session mit ${sessionPartner ?: "unbekannt"}"
+                                        } ?: run {
+                                            infoMessage = "Session konnte nicht geladen werden"
+                                        }
                                     } else {
                                         infoMessage = "Fehler beim Annehmen der Einladung"
                                     }
@@ -181,6 +191,14 @@ fun SessionScreen(
                     }
                 }
             }
+        }
+
+        sessionPartner?.let {
+            Text(
+                text = "✅ Du bist in einer Session mit: $it",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
 
         if (infoMessage.isNotBlank()) {
