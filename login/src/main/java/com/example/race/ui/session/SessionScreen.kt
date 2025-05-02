@@ -13,6 +13,7 @@ import com.example.race.common.TokenUtils
 import com.example.race.data.network.AllClients
 import com.example.race.data.network.TokenHolder
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -28,6 +29,7 @@ fun SessionScreen(
 
     var friends by remember { mutableStateOf<List<String>>(emptyList()) }
     val invitedFriends = remember { mutableStateListOf<String>() }
+    val acceptedFriends = remember { mutableStateListOf<String>() }
     var sessionId by remember { mutableStateOf<String?>(null) }
     var sessionPartner by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
@@ -41,21 +43,33 @@ fun SessionScreen(
         }
 
         try {
-            friends = withContext(Dispatchers.IO) {
-                friendClient.getFriends(username)
-            }
-
-            invitations = withContext(Dispatchers.IO) {
-                sessionClient.getInvitations(username)
-            }
-
+            friends = withContext(Dispatchers.IO) { friendClient.getFriends(username) }
+            invitations = withContext(Dispatchers.IO) { sessionClient.getInvitations(username) }
             if (invitations.isNotEmpty()) {
                 infoMessage = "Du hast ${invitations.size} Einladung(en)"
             }
-
         } catch (e: Exception) {
             infoMessage = "Fehler beim Initialisieren:\n${e::class.simpleName}: ${e.message}"
             Log.e("SessionScreen", "Initialisierungsfehler", e)
+        }
+    }
+
+    LaunchedEffect(sessionId) {
+        if (sessionId != null && username != null) {
+            while (true) {
+                delay(2000)
+                val session = withContext(Dispatchers.IO) {
+                    sessionClient.getSession(sessionId!!)
+                }
+                if (session != null && session.playerB != null && session.status == "ACTIVE") {
+                    val partner = if (session.playerA == username) session.playerB else session.playerA
+                    sessionPartner = partner
+                    acceptedFriends.add(partner!!)
+                    invitedFriends.remove(partner)
+                    infoMessage = "✅ $partner hat die Einladung angenommen!"
+                    break
+                }
+            }
         }
     }
 
@@ -74,9 +88,7 @@ fun SessionScreen(
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
+        modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text("🎯 Session erstellen", style = MaterialTheme.typography.headlineMedium)
@@ -88,54 +100,56 @@ fun SessionScreen(
             items(friends) { friend ->
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Row(
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .fillMaxWidth(),
+                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(friend)
 
-                        if (invitedFriends.contains(friend)) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                        } else {
-                            Button(
-                                onClick = {
-                                    coroutineScope.launch {
-                                        if (username == null) {
-                                            infoMessage = "Benutzername fehlt"
-                                            return@launch
-                                        }
+                        when {
+                            acceptedFriends.contains(friend) -> {
+                                Button(onClick = {}, enabled = false) {
+                                    Text("Hat angenommen ✅")
+                                }
+                            }
 
-                                        if (sessionId == null) {
-                                            sessionId = withContext(Dispatchers.IO) {
-                                                sessionClient.createSession(username)
+                            invitedFriends.contains(friend) -> {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            }
+
+                            else -> {
+                                Button(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            if (username == null) {
+                                                infoMessage = "Benutzername fehlt"
+                                                return@launch
                                             }
-                                        }
-
-                                        invitedFriends.add(friend)
-
-                                        try {
-                                            val success = withContext(Dispatchers.IO) {
-                                                sessionClient.invitePlayer(username, friend)
+                                            if (sessionId == null) {
+                                                sessionId = withContext(Dispatchers.IO) {
+                                                    sessionClient.createSession(username)
+                                                }
                                             }
-
-                                            if (!success) {
-                                                infoMessage = "Einladung an $friend fehlgeschlagen"
+                                            invitedFriends.add(friend)
+                                            try {
+                                                val success = withContext(Dispatchers.IO) {
+                                                    sessionClient.invitePlayer(username, friend)
+                                                }
+                                                if (!success) {
+                                                    infoMessage = "Einladung an $friend fehlgeschlagen"
+                                                    invitedFriends.remove(friend)
+                                                }
+                                            } catch (e: Exception) {
+                                                infoMessage = "Fehler beim Einladen:\n${e::class.simpleName}: ${e.message}"
+                                                Log.e("SessionScreen", "Fehler beim Einladen", e)
                                                 invitedFriends.remove(friend)
-                                            } else {
-                                                sessionPartner = friend
                                             }
-                                        } catch (e: Exception) {
-                                            infoMessage = "Fehler beim Einladen:\n${e::class.simpleName}: ${e.message}"
-                                            Log.e("SessionScreen", "Fehler beim Einladen", e)
-                                            invitedFriends.remove(friend)
                                         }
-                                    }
-                                },
-                                enabled = !isLoading
-                            ) {
-                                Text("Einladen")
+                                    },
+                                    enabled = !isLoading
+                                ) {
+                                    Text("Einladen")
+                                }
                             }
                         }
                     }
@@ -153,14 +167,11 @@ fun SessionScreen(
                 items(invitations) { invitation ->
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Row(
-                            modifier = Modifier
-                                .padding(16.dp)
-                                .fillMaxWidth(),
+                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text("Von ${invitation.requester}")
-
                             Button(onClick = {
                                 coroutineScope.launch {
                                     val accepted = withContext(Dispatchers.IO) {
@@ -169,14 +180,12 @@ fun SessionScreen(
                                     if (accepted) {
                                         sessionId = invitation.sessionId
                                         invitations = emptyList()
-
                                         val session = withContext(Dispatchers.IO) {
                                             sessionClient.getSession(invitation.sessionId)
                                         }
-
                                         session?.let {
                                             sessionPartner = if (it.playerA == username) it.playerB else it.playerA
-                                            infoMessage = "Du bist in einer Session mit ${sessionPartner ?: "unbekannt"}"
+                                            infoMessage = "✅ Du bist in einer Session mit ${sessionPartner ?: "unbekannt"}"
                                         } ?: run {
                                             infoMessage = "Session konnte nicht geladen werden"
                                         }
@@ -214,7 +223,7 @@ fun SessionScreen(
         Button(
             onClick = onNavigateToRaceGame,
             modifier = Modifier.fillMaxWidth(),
-            enabled = invitedFriends.isNotEmpty() && sessionId != null
+            enabled = sessionPartner != null
         ) {
             Text("🚗 Spiel starten")
         }
