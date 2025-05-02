@@ -1,5 +1,6 @@
 package com.example.race.ui.session
 
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -9,8 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.race.common.TokenUtils
-import com.example.race.data.network.FriendListClient
-import com.example.race.data.network.SessionClient
+import com.example.race.data.network.AllClients
 import com.example.race.data.network.TokenHolder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -22,8 +22,8 @@ fun SessionScreen(
     onNavigateBack: () -> Unit
 ) {
     val username = remember { TokenUtils.decodeUsername(TokenHolder.jwtToken) }
-    val friendClient = remember { FriendListClient() }
-    val sessionClient = remember { SessionClient() }
+    val sessionClient = remember { AllClients.sessionClient }
+    val friendClient = remember { AllClients.friendListClient }
     val coroutineScope = rememberCoroutineScope()
 
     var friends by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -31,6 +31,7 @@ fun SessionScreen(
     var sessionId by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var infoMessage by remember { mutableStateOf("") }
+    var invitations by remember { mutableStateOf<List<de.ruoff.consistency.service.session.Session.Invitation>>(emptyList()) }
 
     LaunchedEffect(username) {
         if (username == null) {
@@ -38,36 +39,24 @@ fun SessionScreen(
             return@LaunchedEffect
         }
 
-        println(">> SessionScreen gestartet mit Username: $username")
-
         try {
-            println(">> Lade Freundesliste...")
             friends = withContext(Dispatchers.IO) {
                 friendClient.getFriends(username)
             }
-            println(">> Freunde geladen: $friends")
 
-            println(">> Frage offene Session ab...")
-            val existingSession = withContext(Dispatchers.IO) {
-                sessionClient.getOpenSessionForPlayer(username)
-            }
-
-            sessionId = if (existingSession != null && existingSession.status == "WAITING_FOR_PLAYER") {
-                println(">> Es gibt bereits eine offene Session: ${existingSession.sessionId}")
-                existingSession.sessionId
-            } else {
-                println(">> Es gibt keine offene Session – erstelle eine neue.")
-                withContext(Dispatchers.IO) {
-                    sessionClient.createSession(username)
-                }.also {
-                    println(">> Neue Session erstellt mit ID: $it")
+            invitations = withContext(Dispatchers.IO) {
+                sessionClient.getInvitations(username).also {
+                    Log.d("SessionScreen", "Einladungen für $username: $it")
                 }
             }
 
+            if (invitations.isNotEmpty()) {
+                infoMessage = "Du hast ${invitations.size} Einladung(en)"
+            }
+
         } catch (e: Exception) {
-            println(">> Fehler beim Erstellen oder Laden der Session:")
-            e.printStackTrace()
-            infoMessage = "Fehler beim Laden oder Erstellen der Session: ${e.message ?: "unbekannt"}"
+            infoMessage = "Fehler beim Initialisieren:\n${e::class.simpleName}: ${e.message}"
+            Log.e("SessionScreen", "Initialisierungsfehler", e)
         }
     }
 
@@ -76,15 +65,13 @@ fun SessionScreen(
             coroutineScope.launch {
                 if (sessionId != null && username != null) {
                     try {
-                        println("🧹 Verlasse Session $sessionId für $username")
                         sessionClient.leaveSession(sessionId!!, username)
                     } catch (e: Exception) {
-                        println("⚠️ Fehler beim Verlassen der Session: ${e.message}")
+                        Log.e("SessionScreen", "Fehler beim Verlassen der Session", e)
                     }
                 }
             }
         }
-        onDispose { }
     }
 
     Column(
@@ -116,12 +103,19 @@ fun SessionScreen(
                             Button(
                                 onClick = {
                                     coroutineScope.launch {
-                                        if (username == null || sessionId == null) {
-                                            infoMessage = "Session oder Benutzername fehlt"
+                                        if (username == null) {
+                                            infoMessage = "Benutzername fehlt"
                                             return@launch
                                         }
 
-                                        invitedFriends.add(friend) // Ladeindikator anzeigen
+                                        if (sessionId == null) {
+                                            // Session wird erst bei Einladung erstellt
+                                            sessionId = withContext(Dispatchers.IO) {
+                                                sessionClient.createSession(username)
+                                            }
+                                        }
+
+                                        invitedFriends.add(friend)
 
                                         try {
                                             val success = withContext(Dispatchers.IO) {
@@ -133,7 +127,8 @@ fun SessionScreen(
                                                 invitedFriends.remove(friend)
                                             }
                                         } catch (e: Exception) {
-                                            infoMessage = "Fehler beim Einladen: ${e.message ?: "unbekannt"}"
+                                            infoMessage = "Fehler beim Einladen:\n${e::class.simpleName}: ${e.message}"
+                                            Log.e("SessionScreen", "Fehler beim Einladen", e)
                                             invitedFriends.remove(friend)
                                         }
                                     }
@@ -141,6 +136,46 @@ fun SessionScreen(
                                 enabled = !isLoading
                             ) {
                                 Text("Einladen")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (invitations.isNotEmpty()) {
+            Text("📨 Einladungen", style = MaterialTheme.typography.titleMedium)
+
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                items(invitations) { invitation ->
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Von ${invitation.requester}")
+
+                            Button(onClick = {
+                                coroutineScope.launch {
+                                    val accepted = withContext(Dispatchers.IO) {
+                                        sessionClient.acceptInvitation(invitation.sessionId, username!!)
+                                    }
+                                    if (accepted) {
+                                        sessionId = invitation.sessionId
+                                        infoMessage = "Einladung angenommen. Session ID: ${invitation.sessionId}"
+                                        invitations = emptyList()
+                                    } else {
+                                        infoMessage = "Fehler beim Annehmen der Einladung"
+                                    }
+                                }
+                            }) {
+                                Text("Annehmen")
                             }
                         }
                     }

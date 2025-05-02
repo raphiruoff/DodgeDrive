@@ -4,138 +4,85 @@ import org.springframework.data.redis.core.RedisTemplate
 import org.springframework.stereotype.Service
 import java.util.*
 import io.grpc.Status
+import org.springframework.beans.factory.annotation.Qualifier
 
 @Service
 class SessionService(
-    private val redisTemplate: RedisTemplate<String, GameSession>
+    @Qualifier("sessionRedisTemplate")
+    private val sessionRedisTemplate: RedisTemplate<String, GameSession>,
+
+    @Qualifier("invitationRedisTemplate")
+    private val invitationRedisTemplate: RedisTemplate<String, Invitation>
+
 ) {
 
     fun createSession(playerA: String): GameSession {
         val existing = getOpenSessionForPlayer(playerA)
-        if (existing != null) {
-            println("[SessionService] WARN: Spieler $playerA hat bereits eine offene Session (${existing.sessionId})")
-            return existing
-        }
+        if (existing != null) return existing
 
         val sessionId = UUID.randomUUID().toString()
         val session = GameSession(sessionId, playerA)
-        val key = "session:$sessionId"
-        println("[SessionService] Erstelle neue Session für $playerA mit ID $sessionId")
-
-        try {
-            redisTemplate.opsForValue().set(key, session)
-            println("[SessionService] Session gespeichert unter Key $key")
-        } catch (e: Exception) {
-            println("[SessionService] FEHLER beim Speichern der Session in Redis: ${e.message}")
-            throw e
-        }
-
+        sessionRedisTemplate.opsForValue().set("session:$sessionId", session)
         return session
     }
-
 
     fun joinSession(sessionId: String, playerB: String): GameSession? {
         val key = "session:$sessionId"
-        val session = redisTemplate.opsForValue().get(key)
+        val session = sessionRedisTemplate.opsForValue().get(key) as? GameSession
+            ?: throw Status.NOT_FOUND.withDescription("Session nicht gefunden").asRuntimeException()
 
-        println("[SessionService] Anfrage: $playerB möchte Session $sessionId beitreten")
-        if (session == null) {
-            println("[SessionService] joinSession: Keine Session mit ID $sessionId gefunden")
-            throw Status.NOT_FOUND.withDescription("Session nicht gefunden").asRuntimeException()
-        }
-
-        if (session.status != SessionStatus.WAITING_FOR_PLAYER) {
-            println("[SessionService] joinSession: Session nicht offen (Status = ${session.status})")
+        if (session.status != SessionStatus.WAITING_FOR_PLAYER)
             throw Status.FAILED_PRECONDITION.withDescription("Session ist nicht offen").asRuntimeException()
-        }
 
         session.playerB = playerB
         session.status = SessionStatus.ACTIVE
-        redisTemplate.opsForValue().set(key, session)
-        println("[SessionService] Spieler $playerB beigetreten, Session aktualisiert")
-
+        sessionRedisTemplate.opsForValue().set(key, session)
         return session
     }
 
-
-    fun getSession(sessionId: String): GameSession? {
-        return redisTemplate.opsForValue().get("session:$sessionId")
-    }
+    fun getSession(sessionId: String): GameSession? =
+        sessionRedisTemplate.opsForValue().get("session:$sessionId") as? GameSession
 
     fun leaveSession(sessionId: String, username: String): Boolean {
         val key = "session:$sessionId"
-        val session = redisTemplate.opsForValue().get(key) ?: return false
+        val session = sessionRedisTemplate.opsForValue().get(key) as? GameSession ?: return false
 
-        return when {
-            session.playerA == username -> {
-                redisTemplate.delete(key)
-                true
-            }
-            session.playerB == username -> {
+        return when (username) {
+            session.playerA -> sessionRedisTemplate.delete(key)
+            session.playerB -> {
                 session.playerB = null
                 session.status = SessionStatus.WAITING_FOR_PLAYER
-                redisTemplate.opsForValue().set(key, session)
+                sessionRedisTemplate.opsForValue().set(key, session)
                 true
             }
             else -> false
         }
     }
 
-    fun getOpenSessionForPlayer(player: String): GameSession? {
-        return try {
-            println("[SessionService] Suche offene Session für $player")
-            val keys = redisTemplate.keys("session:*")
-            println("[SessionService] Gefundene Keys: $keys")
-            if (keys == null || keys.isEmpty()) {
-                println("[SessionService] Keine Sessions gefunden.")
-                return null
-            }
-
-            for (key in keys) {
-                val session = redisTemplate.opsForValue().get(key)
-                println("[SessionService] Prüfe Session: $session")
-                if (session != null && session.playerA == player && session.status == SessionStatus.WAITING_FOR_PLAYER) {
-                    println("[SessionService] Passende Session gefunden: ${session.sessionId}")
-                    return session
-                }
-            }
-
-            println("[SessionService] Keine offene Session für $player gefunden.")
-            null
-        } catch (e: Exception) {
-            println("[SessionService] FEHLER bei getOpenSessionForPlayer: ${e.message}")
-            e.printStackTrace()
-            null
+    fun getOpenSessionForPlayer(player: String): GameSession? =
+        sessionRedisTemplate.keys("session:*")?.mapNotNull {
+            sessionRedisTemplate.opsForValue().get(it) as? GameSession
+        }?.firstOrNull {
+            it.playerA == player && it.status == SessionStatus.WAITING_FOR_PLAYER
         }
-    }
 
     fun invitePlayer(requester: String, receiver: String): Boolean {
-        println("Versuche $receiver zu einer Session von $requester einzuladen")
+        val session = getOpenSessionForPlayer(requester) ?: return false
+        if (session.playerB != null) return false
 
-        val session = getOpenSessionForPlayer(requester)
-
-        if (session == null) {
-            println("Keine offene Session für $requester gefunden.")
-            return false
-        }
-
-        if (session.playerB != null) {
-            println("Session ${session.sessionId} hat bereits einen zweiten Spieler: ${session.playerB}")
-            return false
-        }
-
-        session.playerB = receiver
-        session.status = SessionStatus.WAITING_FOR_START
-
-        val key = "session:${session.sessionId}"
-        redisTemplate.opsForValue().set(key, session)
-        println("Spieler $receiver wurde zur Session ${session.sessionId} eingeladen.")
+        val invite = Invitation(session.sessionId, requester)
+        invitationRedisTemplate.opsForList().rightPush("invite:$receiver", invite)
         return true
     }
 
+    fun getInvitationsForPlayer(player: String): List<Invitation> =
+        invitationRedisTemplate.opsForList().range("invite:$player", 0, -1) ?: emptyList()
 
-
-
-
-
+    fun acceptInvitation(sessionId: String, username: String): Boolean = try {
+        joinSession(sessionId, username)
+        invitationRedisTemplate.delete("invite:$username")
+        true
+    } catch (e: Exception) {
+        false
+    }
 }

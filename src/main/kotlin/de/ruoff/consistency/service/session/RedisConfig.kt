@@ -1,5 +1,6 @@
 package de.ruoff.consistency.service.session
 
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.data.redis.connection.RedisConnectionFactory
@@ -19,7 +20,8 @@ class RedisConfig {
     }
 
     @Bean
-    fun redisTemplate(connectionFactory: RedisConnectionFactory): RedisTemplate<String, GameSession> {
+    @Qualifier("sessionRedisTemplate")
+    fun sessionRedisTemplate(connectionFactory: RedisConnectionFactory): RedisTemplate<String, GameSession> {
         val template = RedisTemplate<String, GameSession>()
         template.setConnectionFactory(connectionFactory)
         template.keySerializer = StringRedisSerializer()
@@ -29,4 +31,15 @@ class RedisConfig {
         template.valueSerializer = serializer
         return template
     }
+
+    @Bean
+    @Qualifier("invitationRedisTemplate")
+    fun invitationRedisTemplate(connectionFactory: RedisConnectionFactory): RedisTemplate<String, Invitation> {
+        val template = RedisTemplate<String, Invitation>()
+        template.setConnectionFactory(connectionFactory)
+        template.keySerializer = StringRedisSerializer()
+        template.valueSerializer = GenericJackson2JsonRedisSerializer()
+        return template
+    }
+
 }
