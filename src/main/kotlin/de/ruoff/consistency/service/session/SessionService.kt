@@ -13,7 +13,6 @@ class SessionService(
 
     @Qualifier("invitationRedisTemplate")
     private val invitationRedisTemplate: RedisTemplate<String, Invitation>
-
 ) {
 
     fun createSession(playerA: String): GameSession {
@@ -82,7 +81,34 @@ class SessionService(
         joinSession(sessionId, username)
         invitationRedisTemplate.delete("invite:$username")
         true
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         false
+    }
+
+    fun startGame(sessionId: String, username: String): Boolean {
+        val key = "session:$sessionId"
+        val session = sessionRedisTemplate.opsForValue().get(key)
+            ?: throw Status.NOT_FOUND
+                .withDescription("Session mit ID $sessionId wurde nicht gefunden.")
+                .asRuntimeException()
+
+        if (session.playerA != username && session.playerB != username)
+            throw Status.PERMISSION_DENIED
+                .withDescription("Nur Spieler A oder B dürfen die Session starten.")
+                .asRuntimeException()
+
+        if (session.status != SessionStatus.ACTIVE)
+            throw Status.FAILED_PRECONDITION
+                .withDescription("Session ist nicht im Status ACTIVE (aktuell: ${session.status}).")
+                .asRuntimeException()
+
+        if (session.playerA == null || session.playerB == null)
+            throw Status.FAILED_PRECONDITION
+                .withDescription("Beide Spieler müssen gesetzt sein.")
+                .asRuntimeException()
+
+        session.status = SessionStatus.WAITING_FOR_START
+        sessionRedisTemplate.opsForValue().set(key, session)
+        return true
     }
 }

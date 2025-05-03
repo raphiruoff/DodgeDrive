@@ -116,4 +116,12 @@ class SessionController(
         responseObserver.onNext(response)
         responseObserver.onCompleted()
     }
+
+    override fun startGame(request: Session.StartGameRequest, responseObserver: StreamObserver<Session.StartGameResponse>) {
+        val success = sessionService.startGame(request.sessionId, request.username)
+        val response = Session.StartGameResponse.newBuilder().setSuccess(success).build()
+        responseObserver.onNext(response)
+        responseObserver.onCompleted()
+    }
+
 }

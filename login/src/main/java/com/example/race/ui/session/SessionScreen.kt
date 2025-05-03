@@ -1,6 +1,5 @@
 package com.example.race.ui.session
 
-import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -32,9 +31,14 @@ fun SessionScreen(
     val acceptedFriends = remember { mutableStateListOf<String>() }
     var sessionId by remember { mutableStateOf<String?>(null) }
     var sessionPartner by remember { mutableStateOf<String?>(null) }
+    var sessionStatus by remember { mutableStateOf<String?>(null) }
+
     var isLoading by remember { mutableStateOf(false) }
     var infoMessage by remember { mutableStateOf("") }
     var invitations by remember { mutableStateOf<List<de.ruoff.consistency.service.session.Session.Invitation>>(emptyList()) }
+
+    var countdown by remember { mutableStateOf(0) }
+    var isCountingDown by remember { mutableStateOf(false) }
 
     LaunchedEffect(username) {
         if (username == null) {
@@ -50,24 +54,40 @@ fun SessionScreen(
             }
         } catch (e: Exception) {
             infoMessage = "Fehler beim Initialisieren:\n${e::class.simpleName}: ${e.message}"
-            Log.e("SessionScreen", "Initialisierungsfehler", e)
         }
     }
 
     LaunchedEffect(sessionId) {
         if (sessionId != null && username != null) {
             while (true) {
-                delay(2000)
-                val session = withContext(Dispatchers.IO) {
-                    sessionClient.getSession(sessionId!!)
-                }
-                if (session != null && session.playerB != null && session.status == "ACTIVE") {
-                    val partner = if (session.playerA == username) session.playerB else session.playerA
-                    sessionPartner = partner
-                    acceptedFriends.add(partner!!)
-                    invitedFriends.remove(partner)
-                    infoMessage = "✅ $partner hat die Einladung angenommen!"
-                    break
+                delay(2000L)
+                val session = withContext(Dispatchers.IO) { sessionClient.getSession(sessionId!!) }
+                if (session != null) {
+                    sessionStatus = session.status
+
+                    if (session.status == "ACTIVE" && session.playerB != null) {
+                        val partner = if (session.playerA == username) session.playerB else session.playerA
+                        sessionPartner = partner
+                        if (partner != null && !acceptedFriends.contains(partner)) {
+                            acceptedFriends.add(partner)
+                        }
+                        invitedFriends.remove(partner)
+                        infoMessage = "✅ $partner hat die Einladung angenommen!"
+                    }
+
+                    if (session.status == "WAITING_FOR_START") {
+                        if (!isCountingDown) {
+                            isCountingDown = true
+                            for (i in 3 downTo 1) {
+                                delay(1000L)
+                                countdown = i
+                            }
+                            delay(1000L)
+                            countdown = 0
+                            onNavigateToRaceGame()
+                        }
+                        break
+                    }
                 }
             }
         }
@@ -79,9 +99,7 @@ fun SessionScreen(
                 if (sessionId != null && username != null) {
                     try {
                         sessionClient.leaveSession(sessionId!!, username)
-                    } catch (e: Exception) {
-                        Log.e("SessionScreen", "Fehler beim Verlassen der Session", e)
-                    }
+                    } catch (_: Exception) {}
                 }
             }
         }
@@ -100,7 +118,9 @@ fun SessionScreen(
             items(friends) { friend ->
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Row(
-                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -141,7 +161,6 @@ fun SessionScreen(
                                                 }
                                             } catch (e: Exception) {
                                                 infoMessage = "Fehler beim Einladen:\n${e::class.simpleName}: ${e.message}"
-                                                Log.e("SessionScreen", "Fehler beim Einladen", e)
                                                 invitedFriends.remove(friend)
                                             }
                                         }
@@ -167,7 +186,9 @@ fun SessionScreen(
                 items(invitations) { invitation ->
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Row(
-                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -186,6 +207,7 @@ fun SessionScreen(
                                         session?.let {
                                             sessionPartner = if (it.playerA == username) it.playerB else it.playerA
                                             infoMessage = "✅ Du bist in einer Session mit ${sessionPartner ?: "unbekannt"}"
+                                            sessionStatus = it.status
                                         } ?: run {
                                             infoMessage = "Session konnte nicht geladen werden"
                                         }
@@ -221,9 +243,28 @@ fun SessionScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         Button(
-            onClick = onNavigateToRaceGame,
+            onClick = {
+                coroutineScope.launch {
+                    if (sessionId != null && username != null && sessionStatus == "ACTIVE") {
+                        try {
+                            val started = withContext(Dispatchers.IO) {
+                                sessionClient.startGame(sessionId!!, username)
+                            }
+                            if (!started) {
+                                infoMessage = "Spielstart fehlgeschlagen (Backend false)."
+                            } else {
+                                sessionStatus = "WAITING_FOR_START"
+                            }
+                        } catch (e: Exception) {
+                            infoMessage = "Fehler beim Spielstart:\n${e::class.simpleName}: ${e.message}"
+                        }
+                    } else {
+                        infoMessage = "Spielstart aktuell nicht erlaubt (Status: $sessionStatus)"
+                    }
+                }
+            },
             modifier = Modifier.fillMaxWidth(),
-            enabled = sessionPartner != null
+            enabled = sessionPartner != null && !isCountingDown && sessionStatus == "ACTIVE"
         ) {
             Text("🚗 Spiel starten")
         }
@@ -233,6 +274,15 @@ fun SessionScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("⬅️ Zurück")
+        }
+
+        if (isCountingDown) {
+            Text(
+                text = "$countdown",
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
         }
     }
 }
