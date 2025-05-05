@@ -12,7 +12,6 @@ import com.example.race.common.TokenUtils
 import com.example.race.data.network.AllClients
 import com.example.race.data.network.GameClient
 import com.example.race.data.network.TokenHolder
-import de.ruoff.consistency.service.game.GetGameResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -41,7 +40,6 @@ fun SessionScreen(
 
     var countdown by remember { mutableStateOf(0) }
     var isCountingDown by remember { mutableStateOf(false) }
-    var isWaitingForGame by remember { mutableStateOf(false) }
 
     LaunchedEffect(username) {
         if (username == null) {
@@ -94,43 +92,35 @@ fun SessionScreen(
 
                                 if (safePartner != null) {
                                     val gameId = withContext(Dispatchers.IO) {
-                                        val existingGame = GameClient().getGameBySession(safeSessionId)
-                                        if (existingGame != null) {
-                                            existingGame.gameId
-                                        } else {
-                                            val currentSession = sessionClient.getSession(safeSessionId)
-                                            if (currentSession != null && safeUsername == currentSession.playerA) {
-                                                GameClient().createGame(safeSessionId, safeUsername, safePartner)
-                                            } else {
-                                                isWaitingForGame = true
-                                                repeat(5) {
-                                                    delay(1000)
-                                                    val retryGame = GameClient().getGameBySession(safeSessionId)
-                                                    if (retryGame != null) {
-                                                        isWaitingForGame = false
-                                                        return@withContext retryGame.gameId
-                                                    }
-                                                }
-                                                isWaitingForGame = false
-                                                null
-                                            }
-                                        }
+                                        GameClient().getGameBySession(safeSessionId)?.gameId
+                                            ?: GameClient().createGame(safeSessionId, safeUsername, safePartner)
                                     }
 
                                     if (!gameId.isNullOrBlank()) {
                                         onNavigateToRaceGame(gameId, username)
                                     } else {
-                                        infoMessage = "Spiel konnte nicht erstellt werden (gameId leer)"
+                                        infoMessage = "❌ Spiel konnte nicht erstellt werden (gameId leer)"
                                         isCountingDown = false
                                     }
+
                                 } else {
-                                    infoMessage = "Kein gültiger Mitspieler"
+                                    infoMessage = "❌ Kein gültiger Mitspieler"
                                     isCountingDown = false
                                 }
                             } catch (e: Exception) {
-                                infoMessage = "Spiel konnte nicht erstellt werden: ${e.message}"
+                                val errorDetails = when (e) {
+                                    is io.grpc.StatusRuntimeException -> {
+                                        val status = e.status
+                                        val cause = e.cause?.message ?: "keine Detailursache"
+                                        "gRPC-Fehler: ${status.code} - ${status.description} (Ursache: $cause)"
+                                    }
+                                    else -> "Allgemeiner Fehler: ${e::class.simpleName} - ${e.message}"
+                                }
+
+                                infoMessage = "❌ Spiel konnte nicht erstellt werden:\n$errorDetails"
                                 isCountingDown = false
                             }
+
                         }
                         break
                     }
@@ -305,7 +295,7 @@ fun SessionScreen(
             modifier = Modifier.fillMaxWidth(),
             enabled = sessionPartner != null && !isCountingDown && sessionStatus == "ACTIVE"
         ) {
-            Text("\uD83D\uDE97 Spiel starten")
+            Text("🚗 Spiel starten")
         }
 
         Button(

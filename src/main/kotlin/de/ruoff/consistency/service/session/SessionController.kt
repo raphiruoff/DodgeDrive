@@ -22,7 +22,7 @@ class SessionController(
             responseObserver.onNext(response)
             responseObserver.onCompleted()
         } catch (e: Exception) {
-            println("❌ Fehler bei createSession für ${request.playerA}: ${e.message}")
+            println("Fehler bei createSession für ${request.playerA}: ${e.message}")
             e.printStackTrace()
             responseObserver.onError(
                 Status.INTERNAL
@@ -98,7 +98,7 @@ class SessionController(
             responseObserver.onNext(response)
             responseObserver.onCompleted()
         } catch (e: Exception) {
-            println("❌ Fehler bei getInvitations für ${request.player}: ${e.message}")
+            println("Fehler bei getInvitations für ${request.player}: ${e.message}")
             e.printStackTrace()
             responseObserver.onError(
                 Status.UNKNOWN

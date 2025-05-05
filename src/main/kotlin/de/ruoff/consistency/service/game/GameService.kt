@@ -11,10 +11,9 @@ class GameService(
     fun createGame(sessionId: String, playerA: String, playerB: String): GameModel {
         println("🎮 Creating game for session $sessionId with players A=$playerA, B=$playerB")
 
-        val existing = gameRepository.findBySessionId(sessionId)
-        if (existing != null) {
-            println("⚠️ Game already exists for session $sessionId, returning existing game")
-            return existing
+        gameRepository.findBySessionId(sessionId)?.let {
+            println("⚠️ Game already exists for sessionId=$sessionId → gameId=${it.gameId}")
+            return it
         }
 
         if (playerA == playerB) {
@@ -31,6 +30,7 @@ class GameService(
         gameRepository.save(game)
         return game
     }
+
 
 
     fun getGame(gameId: String): GameModel? {
