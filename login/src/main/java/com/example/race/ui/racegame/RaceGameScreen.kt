@@ -1,5 +1,6 @@
 package com.example.race.ui.racegame
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -12,18 +13,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.navigation.NavHostController
 import com.example.login.R
+import com.example.race.data.network.GameClient
+import com.example.race.navigation.Routes
 import com.example.race.ui.racegame.components.Car
 import com.example.race.ui.racegame.components.Obstacle
 import com.example.race.ui.racegame.components.ScrollingRaceTrack
 import com.example.race.ui.racegame.state.CarState
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.font.FontWeight
-import androidx.navigation.NavHostController
-import com.example.race.navigation.Routes
-import com.example.race.data.network.GameClient
 
 fun checkCollision(car: CarState, obstacle: Obstacle): Boolean {
     val carWidth = 48f
@@ -41,24 +42,18 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
     val score = remember { mutableStateOf(0) }
     val opponentScore = remember { mutableStateOf(0) }
     val isGameOver = remember { mutableStateOf(false) }
-    val coroutineScope = rememberCoroutineScope()
 
     Column(modifier = Modifier.fillMaxSize()) {
-        BoxWithConstraints(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-        ) {
+        BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth()) {
             val screenWidth = constraints.maxWidth
             val screenHeight = constraints.maxHeight
-
             val carWidth = 48f
             val moveStep = 20f
             val offsetFix = 100f
-
             val streetLeft = screenWidth * 1f / 6f - offsetFix
             val streetRight = screenWidth * 5f / 6f - carWidth - offsetFix
 
+            // Initial car position
             LaunchedEffect(screenWidth, screenHeight) {
                 val centerX = (streetLeft + streetRight) / 2f
                 val lowerY = screenHeight * 3f / 4f
@@ -66,6 +61,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
             }
 
             if (!isGameOver.value) {
+                // Obstacles
                 LaunchedEffect(Unit) {
                     while (true) {
                         val laneX = listOf(
@@ -73,23 +69,21 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                             screenWidth * 3f / 6f,
                             screenWidth * 4f / 6f
                         ).random()
-
                         obstacles.add(Obstacle(x = laneX, y = -50f))
                         delay(2500L)
                     }
                 }
 
+                // Game loop & collision
                 LaunchedEffect(Unit) {
                     while (true) {
                         val iterator = obstacles.iterator()
                         while (iterator.hasNext()) {
                             val obstacle = iterator.next()
                             obstacle.y += 8f
-
                             if (checkCollision(carState.value, obstacle)) {
                                 isGameOver.value = true
                             }
-
                             if (obstacle.y > screenHeight) {
                                 iterator.remove()
                                 score.value += 1
@@ -99,26 +93,31 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                     }
                 }
 
+                // Update own score
                 LaunchedEffect(score.value) {
                     GameClient().updateScore(gameId, username, score.value)
                 }
 
-                // Gegner-Score regelmäßig abrufen (auch nach Neustart)
+                // Fetch opponent score regularly
                 LaunchedEffect(gameId, isGameOver.value) {
                     while (!isGameOver.value) {
                         val game = try {
                             GameClient().getGame(gameId)
                         } catch (e: Exception) {
+                            Log.e("RaceGameScreen", "❌ Fehler beim Laden des Spiels", e)
                             null
                         }
 
+                        Log.d("RaceGameScreen", "📊 Game geladen: SpielerA=${game?.playerA}, SpielerB=${game?.playerB}, Scores=${game?.scoresMap}")
+
                         val opponent = when (username) {
                             game?.playerA -> game.playerB
-                            game?.playerB -> game?.playerA
+                            game?.playerB -> game.playerA
                             else -> null
                         }
 
                         val opponentValue = game?.scoresMap?.get(opponent) ?: 0
+                        Log.d("RaceGameScreen", "🆚 Gegner '$opponent' hat Score: $opponentValue")
                         opponentScore.value = opponentValue
 
                         delay(1000L)
@@ -126,16 +125,14 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 }
             }
 
+            // UI
             ScrollingRaceTrack()
             Car(carState = carState.value)
-
-            obstacles.forEach { obstacle ->
+            obstacles.forEach {
                 Image(
                     painter = painterResource(id = R.drawable.obstacle),
                     contentDescription = "Hindernis",
-                    modifier = Modifier
-                        .offset { IntOffset(obstacle.x.roundToInt(), obstacle.y.roundToInt()) }
-                        .size(48.dp)
+                    modifier = Modifier.offset { IntOffset(it.x.roundToInt(), it.y.roundToInt()) }.size(48.dp)
                 )
             }
 
@@ -143,9 +140,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 text = "Score: ${score.value}",
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(16.dp),
+                modifier = Modifier.align(Alignment.TopEnd).padding(16.dp),
                 color = Color.White
             )
 
@@ -153,34 +148,26 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 text = "Gegner: ${opponentScore.value}",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(16.dp),
+                modifier = Modifier.align(Alignment.TopStart).padding(16.dp),
                 color = Color.Yellow
             )
 
             if (!isGameOver.value) {
                 Row(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 24.dp),
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
                     horizontalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
                     Button(onClick = {
                         carState.value = carState.value.copy(
                             carX = (carState.value.carX - moveStep).coerceIn(streetLeft, streetRight)
                         )
-                    }) {
-                        Text("⬅️ Links")
-                    }
+                    }) { Text("⬅️ Links") }
 
                     Button(onClick = {
                         carState.value = carState.value.copy(
                             carX = (carState.value.carX + moveStep).coerceIn(streetLeft, streetRight)
                         )
-                    }) {
-                        Text("➡️ Rechts")
-                    }
+                    }) { Text("➡️ Rechts") }
                 }
             }
 
@@ -190,39 +177,25 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 }
 
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color(0x99000000)),
+                    modifier = Modifier.fillMaxSize().background(Color(0x99000000)),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(
-                        text = "💥 Game Over",
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+                    Text("💥 Game Over", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "Score: ${score.value}",
-                        fontSize = 24.sp,
-                        color = Color.White
-                    )
+                    Text("Score: ${score.value}", fontSize = 24.sp, color = Color.White)
                     Spacer(modifier = Modifier.height(24.dp))
                     Button(onClick = {
                         obstacles.clear()
                         score.value = 0
                         isGameOver.value = false
-                    }) {
-                        Text("🔄 Neustart")
-                    }
+                    }) { Text("🔄 Neustart") }
+
                     Button(onClick = {
                         navController.navigate(Routes.MAIN) {
                             popUpTo(Routes.RACEGAME) { inclusive = true }
                         }
-                    }) {
-                        Text("🏠 Zurück zum Hauptmenü")
-                    }
+                    }) { Text("🏠 Zurück zum Hauptmenü") }
                 }
             }
         }

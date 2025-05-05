@@ -33,7 +33,6 @@ class GameRepository(
         val game = findById(gameId) ?: return false
         game.status = GameStatus.FINISHED
         game.winner = winner
-        game.endTime = java.time.Instant.now()
         save(game)
         return true
     }

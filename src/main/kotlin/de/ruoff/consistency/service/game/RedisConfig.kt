@@ -10,27 +10,22 @@ import org.springframework.data.redis.connection.RedisConnectionFactory
 import org.springframework.data.redis.core.RedisTemplate
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer
 import org.springframework.data.redis.serializer.StringRedisSerializer
+import org.springframework.context.annotation.Primary
 
 @Configuration
 class GameRedisConfig {
 
     @Bean
-    fun objectMapper(): ObjectMapper {
-        return ObjectMapper()
-            .registerModule(JavaTimeModule())
-            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-    }
-
-    @Bean
     @Qualifier("gameRedisTemplate")
     fun gameRedisTemplate(
-        connectionFactory: RedisConnectionFactory,
-        objectMapper: ObjectMapper
+        connectionFactory: RedisConnectionFactory
     ): RedisTemplate<String, GameModel> {
         val template = RedisTemplate<String, GameModel>()
         template.setConnectionFactory(connectionFactory)
         template.keySerializer = StringRedisSerializer()
-        template.valueSerializer = GenericJackson2JsonRedisSerializer(objectMapper)
+        template.valueSerializer = GenericJackson2JsonRedisSerializer()
         return template
     }
 }
+
+

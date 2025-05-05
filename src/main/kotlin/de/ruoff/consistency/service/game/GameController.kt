@@ -52,8 +52,6 @@ class GameController(
                 .setStatus(it.status.name)
                 .setWinner(it.winner ?: "")
                 .putAllScores(it.scores.mapValues { entry -> entry.value })
-                .setStartTime(it.startTime.toString())
-                .setEndTime(it.endTime?.toString() ?: "")
                 .build()
         } ?: GetGameResponse.getDefaultInstance()
 
@@ -85,8 +83,6 @@ class GameController(
                 .setStatus(game.status.name)
                 .setWinner(game.winner ?: "")
                 .putAllScores(game.scores)
-                .setStartTime(game.startTime.toString())
-                .setEndTime(game.endTime?.toString() ?: "")
                 .build()
 
             responseObserver.onNext(response)
