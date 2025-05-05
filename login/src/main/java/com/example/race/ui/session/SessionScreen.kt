@@ -10,7 +10,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.race.common.TokenUtils
 import com.example.race.data.network.AllClients
+import com.example.race.data.network.GameClient
 import com.example.race.data.network.TokenHolder
+import de.ruoff.consistency.service.game.GetGameResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -18,7 +20,7 @@ import kotlinx.coroutines.withContext
 
 @Composable
 fun SessionScreen(
-    onNavigateToRaceGame: () -> Unit,
+    onNavigateToRaceGame: (gameId: String, username: String) -> Unit,
     onNavigateBack: () -> Unit
 ) {
     val username = remember { TokenUtils.decodeUsername(TokenHolder.jwtToken) }
@@ -39,6 +41,7 @@ fun SessionScreen(
 
     var countdown by remember { mutableStateOf(0) }
     var isCountingDown by remember { mutableStateOf(false) }
+    var isWaitingForGame by remember { mutableStateOf(false) }
 
     LaunchedEffect(username) {
         if (username == null) {
@@ -75,16 +78,59 @@ fun SessionScreen(
                         infoMessage = "✅ $partner hat die Einladung angenommen!"
                     }
 
-                    if (session.status == "WAITING_FOR_START") {
-                        if (!isCountingDown) {
-                            isCountingDown = true
+                    if (session.status == "WAITING_FOR_START" && !isCountingDown) {
+                        isCountingDown = true
+                        coroutineScope.launch {
                             for (i in 3 downTo 1) {
-                                delay(1000L)
                                 countdown = i
+                                delay(1000L)
                             }
-                            delay(1000L)
                             countdown = 0
-                            onNavigateToRaceGame()
+
+                            try {
+                                val safeSessionId = sessionId ?: return@launch
+                                val safeUsername = username
+                                val safePartner = sessionPartner
+
+                                if (safePartner != null) {
+                                    val gameId = withContext(Dispatchers.IO) {
+                                        val existingGame = GameClient().getGameBySession(safeSessionId)
+                                        if (existingGame != null) {
+                                            existingGame.gameId
+                                        } else {
+                                            val currentSession = sessionClient.getSession(safeSessionId)
+                                            if (currentSession != null && safeUsername == currentSession.playerA) {
+                                                GameClient().createGame(safeSessionId, safeUsername, safePartner)
+                                            } else {
+                                                isWaitingForGame = true
+                                                repeat(5) {
+                                                    delay(1000)
+                                                    val retryGame = GameClient().getGameBySession(safeSessionId)
+                                                    if (retryGame != null) {
+                                                        isWaitingForGame = false
+                                                        return@withContext retryGame.gameId
+                                                    }
+                                                }
+                                                isWaitingForGame = false
+                                                null
+                                            }
+                                        }
+                                    }
+
+                                    if (!gameId.isNullOrBlank()) {
+                                        onNavigateToRaceGame(gameId, username)
+                                    } else {
+                                        infoMessage = "Spiel konnte nicht erstellt werden (gameId leer)"
+                                        isCountingDown = false
+                                    }
+                                } else {
+                                    infoMessage = "Kein gültiger Mitspieler"
+                                    isCountingDown = false
+                                }
+                            } catch (e: Exception) {
+                                infoMessage = "Spiel konnte nicht erstellt werden: ${e.message}"
+                                isCountingDown = false
+                            }
                         }
                         break
                     }
@@ -118,9 +164,7 @@ fun SessionScreen(
             items(friends) { friend ->
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Row(
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .fillMaxWidth(),
+                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -128,9 +172,7 @@ fun SessionScreen(
 
                         when {
                             acceptedFriends.contains(friend) -> {
-                                Button(onClick = {}, enabled = false) {
-                                    Text("✅")
-                                }
+                                Button(onClick = {}, enabled = false) { Text("✅") }
                             }
 
                             invitedFriends.contains(friend) -> {
@@ -166,9 +208,7 @@ fun SessionScreen(
                                         }
                                     },
                                     enabled = !isLoading
-                                ) {
-                                    Text("Einladen")
-                                }
+                                ) { Text("Einladen") }
                             }
                         }
                     }
@@ -186,17 +226,16 @@ fun SessionScreen(
                 items(invitations) { invitation ->
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Row(
-                            modifier = Modifier
-                                .padding(16.dp)
-                                .fillMaxWidth(),
+                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text("Von ${invitation.requester}")
                             Button(onClick = {
                                 coroutineScope.launch {
+                                    if (username == null) return@launch
                                     val accepted = withContext(Dispatchers.IO) {
-                                        sessionClient.acceptInvitation(invitation.sessionId, username!!)
+                                        sessionClient.acceptInvitation(invitation.sessionId, username)
                                     }
                                     if (accepted) {
                                         sessionId = invitation.sessionId
@@ -266,7 +305,7 @@ fun SessionScreen(
             modifier = Modifier.fillMaxWidth(),
             enabled = sessionPartner != null && !isCountingDown && sessionStatus == "ACTIVE"
         ) {
-            Text("🚗 Spiel starten")
+            Text("\uD83D\uDE97 Spiel starten")
         }
 
         Button(

@@ -1,0 +1,84 @@
+package com.example.race.data.network
+
+import android.util.Log
+import de.ruoff.consistency.service.game.*
+import io.grpc.ClientInterceptors
+
+class GameClient : BaseClient() {
+
+    private val jwtInterceptor = JwtClientInterceptor { TokenHolder.jwtToken }
+    private val interceptedChannel = ClientInterceptors.intercept(channel, jwtInterceptor)
+    private val stub = GameServiceGrpc.newBlockingStub(interceptedChannel)
+
+    fun createGame(sessionId: String, playerA: String, playerB: String): String? {
+        return try {
+            val request = CreateGameRequest.newBuilder()
+                .setSessionId(sessionId)
+                .setPlayerA(playerA)
+                .setPlayerB(playerB)
+                .build()
+            val response = stub.createGame(request)
+            response.gameId
+        } catch (e: Exception) {
+            Log.e("GameClient", "❌ createGame failed", e)
+            null
+        }
+    }
+
+    fun getGame(gameId: String): GetGameResponse? {
+        return try {
+            val request = GetGameRequest.newBuilder()
+                .setGameId(gameId)
+                .build()
+            stub.getGame(request)
+        } catch (e: Exception) {
+            Log.e("GameClient", "❌ getGame failed", e)
+            null
+        }
+    }
+
+    fun updateScore(gameId: String, player: String, score: Int): Boolean {
+        return try {
+            val request = UpdateScoreRequest.newBuilder()
+                .setGameId(gameId)
+                .setPlayer(player)
+                .setScore(score)
+                .build()
+            val response = stub.updateScore(request)
+            response.success
+        } catch (e: Exception) {
+            Log.e("GameClient", "❌ updateScore failed", e)
+            false
+        }
+    }
+
+    fun finishGame(gameId: String, winner: String): Boolean {
+        return try {
+            val request = FinishGameRequest.newBuilder()
+                .setGameId(gameId)
+                .setWinner(winner)
+                .build()
+            val response = stub.finishGame(request)
+            response.success
+        } catch (e: Exception) {
+            Log.e("GameClient", "❌ finishGame failed", e)
+            false
+        }
+    }
+
+    fun getGameBySession(sessionId: String): GetGameResponse? {
+        return try {
+            val request = GetGameBySessionRequest.newBuilder()
+                .setSessionId(sessionId)
+                .build()
+            val response = stub.getGameBySession(request)
+            response
+        } catch (e: Exception) {
+            Log.e("GameClient", "❌ getGameBySession failed", e)
+            null
+        }
+    }
+
+
+
+}

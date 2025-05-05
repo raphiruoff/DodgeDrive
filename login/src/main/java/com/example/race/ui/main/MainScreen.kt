@@ -13,7 +13,7 @@ import com.example.race.data.network.TokenHolder
 
 @Composable
 fun MainScreen(
-    onNavigateToRaceGame: () -> Unit,
+    onNavigateToRaceGame: (String, String) -> Unit,
     onNavigateToCreateSession: () -> Unit,
     onManageFriends: () -> Unit,
     onLogout: () -> Unit
@@ -56,7 +56,11 @@ fun MainScreen(
         Spacer(modifier = Modifier.weight(1f))
 
         Button(
-            onClick = onNavigateToRaceGame,
+            onClick = {
+                if (username != null) {
+                    onNavigateToRaceGame("dummy-game-id", username)
+                }
+            },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp)
         ) {

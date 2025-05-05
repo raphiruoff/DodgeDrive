@@ -23,8 +23,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.navigation.NavHostController
 import com.example.race.navigation.Routes
+import com.example.race.data.network.GameClient
 
-// Kollisionsprüfung zwischen Auto und Hindernis
 fun checkCollision(car: CarState, obstacle: Obstacle): Boolean {
     val carWidth = 48f
     val carHeight = 96f
@@ -35,11 +35,13 @@ fun checkCollision(car: CarState, obstacle: Obstacle): Boolean {
 }
 
 @Composable
-fun RaceGameScreen(navController: NavHostController) {
+fun RaceGameScreen(navController: NavHostController, gameId: String, username: String) {
     val carState = remember { mutableStateOf(CarState()) }
     val obstacles = remember { mutableStateListOf<Obstacle>() }
     val score = remember { mutableStateOf(0) }
+    val opponentScore = remember { mutableStateOf(0) }
     val isGameOver = remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
     Column(modifier = Modifier.fillMaxSize()) {
         BoxWithConstraints(
@@ -57,14 +59,12 @@ fun RaceGameScreen(navController: NavHostController) {
             val streetLeft = screenWidth * 1f / 6f - offsetFix
             val streetRight = screenWidth * 5f / 6f - carWidth - offsetFix
 
-            // Auto initial mittig unten positionieren
             LaunchedEffect(screenWidth, screenHeight) {
                 val centerX = (streetLeft + streetRight) / 2f
                 val lowerY = screenHeight * 3f / 4f
                 carState.value = CarState(carX = centerX, carY = lowerY, angle = 0f)
             }
 
-            // Hindernisse spawnen
             if (!isGameOver.value) {
                 LaunchedEffect(Unit) {
                     while (true) {
@@ -79,7 +79,6 @@ fun RaceGameScreen(navController: NavHostController) {
                     }
                 }
 
-                // Hindernisse bewegen und Score aktualisieren
                 LaunchedEffect(Unit) {
                     while (true) {
                         val iterator = obstacles.iterator()
@@ -99,9 +98,34 @@ fun RaceGameScreen(navController: NavHostController) {
                         delay(20L)
                     }
                 }
+
+                LaunchedEffect(score.value) {
+                    GameClient().updateScore(gameId, username, score.value)
+                }
+
+                // Gegner-Score regelmäßig abrufen (auch nach Neustart)
+                LaunchedEffect(gameId, isGameOver.value) {
+                    while (!isGameOver.value) {
+                        val game = try {
+                            GameClient().getGame(gameId)
+                        } catch (e: Exception) {
+                            null
+                        }
+
+                        val opponent = when (username) {
+                            game?.playerA -> game.playerB
+                            game?.playerB -> game?.playerA
+                            else -> null
+                        }
+
+                        val opponentValue = game?.scoresMap?.get(opponent) ?: 0
+                        opponentScore.value = opponentValue
+
+                        delay(1000L)
+                    }
+                }
             }
 
-            // Strecke + Auto + Hindernisse
             ScrollingRaceTrack()
             Car(carState = carState.value)
 
@@ -115,7 +139,6 @@ fun RaceGameScreen(navController: NavHostController) {
                 )
             }
 
-            // Score-Anzeige
             Text(
                 text = "Score: ${score.value}",
                 fontSize = 28.sp,
@@ -126,7 +149,16 @@ fun RaceGameScreen(navController: NavHostController) {
                 color = Color.White
             )
 
-            // Steuerung
+            Text(
+                text = "Gegner: ${opponentScore.value}",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(16.dp),
+                color = Color.Yellow
+            )
+
             if (!isGameOver.value) {
                 Row(
                     modifier = Modifier
@@ -152,8 +184,11 @@ fun RaceGameScreen(navController: NavHostController) {
                 }
             }
 
-            // Game Over Overlay
             if (isGameOver.value) {
+                LaunchedEffect(true) {
+                    GameClient().finishGame(gameId, username)
+                }
+
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -188,7 +223,6 @@ fun RaceGameScreen(navController: NavHostController) {
                     }) {
                         Text("🏠 Zurück zum Hauptmenü")
                     }
-
                 }
             }
         }
