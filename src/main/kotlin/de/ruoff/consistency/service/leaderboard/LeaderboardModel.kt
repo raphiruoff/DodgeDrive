@@ -13,9 +13,6 @@ data class LeaderboardModel(
     val username: String = "",
 
     @Column(nullable = false)
-    val displayName: String = "",
-
-    @Column(nullable = false)
     var highscore: Int = 0
 )
 

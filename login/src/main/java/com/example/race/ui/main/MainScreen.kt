@@ -10,6 +10,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.race.common.TokenUtils
 import com.example.race.data.network.TokenHolder
+import de.ruoff.consistency.service.leaderboard.LeaderboardEntry
+import com.example.race.data.network.LeaderboardClient
 
 @Composable
 fun MainScreen(
@@ -19,6 +21,11 @@ fun MainScreen(
     onLogout: () -> Unit
 ) {
     val username = remember { TokenUtils.decodeUsername(TokenHolder.jwtToken) }
+    var leaderboard by remember { mutableStateOf(emptyList<LeaderboardEntry>()) }
+
+    LaunchedEffect(Unit) {
+        leaderboard = LeaderboardClient().getTopScores()
+    }
 
     Column(
         modifier = Modifier
@@ -53,19 +60,29 @@ fun MainScreen(
             Text("🎯 Neue Session starten")
         }
 
-        Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        Button(
-            onClick = {
-                if (username != null) {
-                    onNavigateToRaceGame("dummy-game-id", username)
+        Text(
+            text = "🏆 Bestenliste",
+            style = MaterialTheme.typography.titleLarge
+        )
+
+        if (leaderboard.isEmpty()) {
+            CircularProgressIndicator()
+        } else {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                leaderboard.forEachIndexed { index, entry ->
+                    Text(
+                        text = "${index + 1}. ${entry.username} — ${entry.highscore} Punkte",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
                 }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Text("🚗 Spiel starten")
+            }
         }
+
+        Spacer(modifier = Modifier.weight(1f))
 
         Button(
             onClick = {
@@ -80,3 +97,4 @@ fun MainScreen(
         }
     }
 }
+

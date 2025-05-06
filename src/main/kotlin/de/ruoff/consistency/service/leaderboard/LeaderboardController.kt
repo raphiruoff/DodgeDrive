@@ -19,7 +19,7 @@ class LeaderboardController(
             .addAllPlayers(
                 topPlayers.map {
                     LeaderboardEntry.newBuilder()
-                        .setDisplayName(it.displayName)
+                        .setUsername(it.username)
                         .setHighscore(it.highscore)
                         .build()
                 }
