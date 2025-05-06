@@ -1,6 +1,7 @@
 package com.example.race.ui.friends
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,7 +33,7 @@ fun FriendsScreen(
                 friends = friendClient.getFriends(it)
                 pendingRequests = friendClient.getPendingRequests(it)
             } catch (e: Exception) {
-                infoMessage = "Fehler beim Laden der Daten: ${e.message}"
+                infoMessage = "❌ Fehler beim Laden: ${e.message}"
             }
         }
     }
@@ -40,76 +41,98 @@ fun FriendsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("👥 Deine Freunde", style = MaterialTheme.typography.headlineMedium)
+        // Header
+        Text(
+            text = "👥 Deine Freunde",
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.align(Alignment.CenterHorizontally)
+        )
 
+        // Profil-Karte
         profile?.let {
-            Text("👤 Profil: ${it.displayName}", style = MaterialTheme.typography.titleMedium)
-            if (it.bio.isNotBlank()) {
-                Text("📄 Bio: ${it.bio}", style = MaterialTheme.typography.bodyMedium)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.cardElevation(4.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("👤 Profil: ${it.displayName}", style = MaterialTheme.typography.titleMedium)
+                    if (it.bio.isNotBlank()) {
+                        Text("📄 Bio: ${it.bio}", style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
             }
         }
 
-        Divider()
-
-        Text("✅ Freunde:", style = MaterialTheme.typography.titleMedium)
-        if (friends.isEmpty()) {
-            Text("Noch keine Freunde hinzugefügt.", style = MaterialTheme.typography.bodyMedium)
-        } else {
-            friends.forEach {
-                Text("• $it", style = MaterialTheme.typography.bodyLarge)
+        // Freundeliste
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            elevation = CardDefaults.cardElevation(4.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("✅ Freunde", style = MaterialTheme.typography.titleMedium)
+                if (friends.isEmpty()) {
+                    Text("Noch keine Freunde hinzugefügt.")
+                } else {
+                    friends.forEach {
+                        Text("• $it", style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Text("📨 Freundschaftsanfragen:", style = MaterialTheme.typography.titleMedium)
-        if (pendingRequests.isEmpty()) {
-            Text("Keine ausstehenden Anfragen.", style = MaterialTheme.typography.bodyMedium)
-        } else {
-            pendingRequests.forEach { requester ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(requester)
-                    Row {
-                        // Akzeptieren Button
-                        Button(onClick = {
-                            username?.let { currentUser ->
-                                infoMessage = friendClient.acceptRequest(requester, currentUser)
-                                pendingRequests = friendClient.getPendingRequests(currentUser)
-                                friends = friendClient.getFriends(currentUser)
+        // Anfragen
+        if (pendingRequests.isNotEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.cardElevation(4.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("📨 Freundschaftsanfragen", style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.height(8.dp))
+                    pendingRequests.forEach { requester ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(requester)
+                            Row {
+                                Button(onClick = {
+                                    username?.let { currentUser ->
+                                        infoMessage = friendClient.acceptRequest(requester, currentUser)
+                                        pendingRequests = friendClient.getPendingRequests(currentUser)
+                                        friends = friendClient.getFriends(currentUser)
+                                    }
+                                }) {
+                                    Text("✔️")
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Button(onClick = {
+                                    username?.let { currentUser ->
+                                        infoMessage = friendClient.declineRequest(requester, currentUser)
+                                        pendingRequests = friendClient.getPendingRequests(currentUser)
+                                    }
+                                }) {
+                                    Text("❌")
+                                }
                             }
-                        }) {
-                            Text("Annehmen")
-                        }
-
-                        // Ablehnen Button
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(onClick = {
-                            username?.let { currentUser ->
-                                infoMessage = friendClient.declineRequest(requester, currentUser)
-                                pendingRequests = friendClient.getPendingRequests(currentUser)
-                            }
-                        }) {
-                            Text("Ablehnen")
                         }
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
+        // Neue Anfrage
         OutlinedTextField(
             value = newFriendUsername,
             onValueChange = { newFriendUsername = it },
-            label = { Text("Username hinzufügen") },
+            label = { Text("👤 Username hinzufügen") },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -120,7 +143,7 @@ fun FriendsScreen(
                         infoMessage = friendClient.sendFriendRequest(it, newFriendUsername)
                         newFriendUsername = ""
                     } catch (e: Exception) {
-                        infoMessage = "Fehler beim Senden der Anfrage: ${e.message}"
+                        infoMessage = "❌ Fehler beim Senden: ${e.message}"
                     }
                 }
             },
@@ -129,8 +152,13 @@ fun FriendsScreen(
             Text("➕ Anfrage senden")
         }
 
+        // Statusnachricht
         if (infoMessage.isNotBlank()) {
-            Text(text = infoMessage, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = infoMessage,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
         }
 
         Spacer(modifier = Modifier.weight(1f))
@@ -143,3 +171,4 @@ fun FriendsScreen(
         }
     }
 }
+
