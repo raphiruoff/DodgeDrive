@@ -13,10 +13,10 @@ import org.springframework.kafka.support.serializer.JsonDeserializer
 
 @Configuration
 @EnableKafka
-class KafkaConsumerConfig {
+class LeaderboardKafkaConsumerConfig {
 
     @Bean
-    fun consumerFactory(): ConsumerFactory<String, HighscoreEvent> {
+    fun leaderboardConsumerFactory(): ConsumerFactory<String, HighscoreEvent> {
         val deserializer = JsonDeserializer(HighscoreEvent::class.java).apply {
             setRemoveTypeHeaders(false)
             addTrustedPackages("*")
@@ -34,10 +34,10 @@ class KafkaConsumerConfig {
         return DefaultKafkaConsumerFactory(props, StringDeserializer(), deserializer)
     }
 
-    @Bean
-    fun kafkaListenerContainerFactory(): ConcurrentKafkaListenerContainerFactory<String, HighscoreEvent> {
+    @Bean(name = ["leaderboardKafkaListenerContainerFactory"])
+    fun leaderboardKafkaListenerContainerFactory(): ConcurrentKafkaListenerContainerFactory<String, HighscoreEvent> {
         return ConcurrentKafkaListenerContainerFactory<String, HighscoreEvent>().apply {
-            consumerFactory = consumerFactory()
+            consumerFactory = leaderboardConsumerFactory()
         }
     }
 }

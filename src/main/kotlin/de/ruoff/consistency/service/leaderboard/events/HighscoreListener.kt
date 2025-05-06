@@ -10,7 +10,11 @@ import org.springframework.stereotype.Component
 class HighscoreListener(
     private val leaderboardRepository: LeaderboardRepository
 ) {
-    @KafkaListener(topics = ["highscore-topic"], groupId = "leaderboard-group")
+    @KafkaListener(
+        topics = ["highscore-topic"],
+        groupId = "leaderboard-group",
+        containerFactory = "leaderboardKafkaListenerContainerFactory"
+    )
     fun consume(event: HighscoreEvent) {
         val existing = leaderboardRepository.findByUsername(event.username)
         if (existing != null) {

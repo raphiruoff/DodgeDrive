@@ -23,7 +23,7 @@ class ProfileService(
                 username = profile.username,
                 highscore = profile.highscore
             )
-            highscoreProducer.sendHighscoreUpdate(event)
+            highscoreProducer.send(event)
         }
     }
 }

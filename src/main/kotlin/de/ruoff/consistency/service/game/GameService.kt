@@ -1,5 +1,8 @@
 package de.ruoff.consistency.service.game
 
+import de.ruoff.consistency.events.HighscoreEvent
+import de.ruoff.consistency.service.game.events.ScoreEvent
+import de.ruoff.consistency.service.game.events.ScoreProducer
 import de.ruoff.consistency.service.profile.ProfileRepository
 import org.springframework.stereotype.Service
 import java.util.*
@@ -7,7 +10,8 @@ import java.util.*
 @Service
 class GameService(
     private val gameRepository: GameRepository,
-    private val profileRepository: ProfileRepository
+    private val profileRepository: ProfileRepository,
+    private val scoreProducer: ScoreProducer
 ) {
 
     fun createGame(sessionId: String, playerA: String, playerB: String): GameModel {
@@ -42,19 +46,19 @@ class GameService(
     fun finishGame(gameId: String, winner: String): Boolean {
         val game = gameRepository.findById(gameId) ?: return false
         val success = gameRepository.finishGame(gameId, winner)
-
         if (!success) return false
 
         val score = game.scores[winner] ?: return true
-        val profile = profileRepository.findByUsername(winner) ?: return true
 
-        if (score > profile.highscore) {
-            profile.highscore = score
-            profileRepository.save(profile)
-        }
+        val event = ScoreEvent(
+            username = winner,
+            score = score
+        )
+        scoreProducer.send(event)
 
         return true
     }
+
 
     fun deleteGame(gameId: String): Boolean = gameRepository.delete(gameId)
 
