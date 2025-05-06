@@ -46,7 +46,9 @@ fun MainScreen(
 
         Button(
             onClick = onManageFriends,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
             shape = RoundedCornerShape(12.dp)
         ) {
             Text("👥 Freunde verwalten")
@@ -54,30 +56,48 @@ fun MainScreen(
 
         Button(
             onClick = onNavigateToCreateSession,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
             shape = RoundedCornerShape(12.dp)
         ) {
             Text("🎯 Neue Session starten")
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
-        Text(
-            text = "🏆 Bestenliste",
-            style = MaterialTheme.typography.titleLarge
-        )
-
-        if (leaderboard.isEmpty()) {
-            CircularProgressIndicator()
-        } else {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        ) {
             Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                leaderboard.forEachIndexed { index, entry ->
-                    Text(
-                        text = "${index + 1}. ${entry.username} — ${entry.highscore} Punkte",
-                        style = MaterialTheme.typography.bodyLarge
-                    )
+                Text(
+                    text = "🏆 Bestenliste",
+                    style = MaterialTheme.typography.titleLarge
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                if (leaderboard.isEmpty()) {
+                    CircularProgressIndicator()
+                } else {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        leaderboard.forEachIndexed { index, entry ->
+                            val isCurrentUser = entry.username == username
+                            Text(
+                                text = "${index + 1}. ${entry.username} — ${entry.highscore} Punkte",
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    color = if (isCurrentUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                )
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -86,10 +106,26 @@ fun MainScreen(
 
         Button(
             onClick = {
+                if (username != null) {
+                    onNavigateToRaceGame("dummy-game-id", username)
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text("🚗 Spiel starten")
+        }
+
+        Button(
+            onClick = {
                 TokenHolder.jwtToken = null
                 onLogout()
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
         ) {
@@ -97,4 +133,3 @@ fun MainScreen(
         }
     }
 }
-
