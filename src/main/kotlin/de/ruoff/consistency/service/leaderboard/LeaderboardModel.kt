@@ -1,10 +1,10 @@
-package de.ruoff.consistency.service.profile
+package de.ruoff.consistency.service.leaderboard
 
 import jakarta.persistence.*
 
 @Entity
-@Table(name = "profile")
-data class ProfileModel(
+@Table(name = "leaderboard")
+data class LeaderboardModel(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0,
@@ -15,9 +15,8 @@ data class ProfileModel(
     @Column(nullable = false)
     val displayName: String = "",
 
-    val bio: String? = null,
-
+    @Column(nullable = false)
     var highscore: Int = 0
-
 )
+
 

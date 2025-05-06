@@ -1,0 +1,22 @@
+syntax = "proto3";
+package de.ruoff.consistency.service.leaderboard;
+
+option java_multiple_files = true;
+
+
+message LeaderboardRequest {
+    int32 limit = 1;
+}
+
+message LeaderboardEntry {
+    string displayName = 1;
+    int32 highscore = 3;
+}
+
+message LeaderboardResponse {
+    repeated LeaderboardEntry players = 1;
+}
+
+service LeaderboardService {
+    rpc GetTopPlayers (LeaderboardRequest) returns (LeaderboardResponse);
+}

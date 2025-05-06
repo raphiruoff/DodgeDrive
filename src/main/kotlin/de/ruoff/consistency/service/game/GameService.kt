@@ -1,11 +1,13 @@
 package de.ruoff.consistency.service.game
 
+import de.ruoff.consistency.service.profile.ProfileRepository
 import org.springframework.stereotype.Service
 import java.util.*
 
 @Service
 class GameService(
-    private val gameRepository: GameRepository
+    private val gameRepository: GameRepository,
+    private val profileRepository: ProfileRepository
 ) {
 
     fun createGame(sessionId: String, playerA: String, playerB: String): GameModel {
@@ -31,31 +33,30 @@ class GameService(
         return game
     }
 
-
-
-    fun getGame(gameId: String): GameModel? {
-        val game = gameRepository.findById(gameId)
-        println("🎮 getGame called for ID: $gameId")
-        println("📌 Game players: A=${game?.playerA}, B=${game?.playerB}")
-        println("📈 Game scores: ${game?.scores}")
-        return game
-    }
+    fun getGame(gameId: String): GameModel? = gameRepository.findById(gameId)
 
     fun updateScore(gameId: String, player: String, score: Int): Boolean {
-        println("🔧 updateScore called with gameId=$gameId, player=$player, score=$score")
         return gameRepository.updateScore(gameId, player, score)
     }
 
     fun finishGame(gameId: String, winner: String): Boolean {
-        return gameRepository.finishGame(gameId, winner)
+        val game = gameRepository.findById(gameId) ?: return false
+        val success = gameRepository.finishGame(gameId, winner)
+
+        if (!success) return false
+
+        val score = game.scores[winner] ?: return true
+        val profile = profileRepository.findByUsername(winner) ?: return true
+
+        if (score > profile.highscore) {
+            profile.highscore = score
+            profileRepository.save(profile)
+        }
+
+        return true
     }
 
-    fun deleteGame(gameId: String): Boolean {
-        return gameRepository.delete(gameId)
-    }
+    fun deleteGame(gameId: String): Boolean = gameRepository.delete(gameId)
 
-    fun getGameBySession(sessionId: String): GameModel? {
-        println("🔍 getGameBySession called for sessionId: $sessionId")
-        return gameRepository.findBySessionId(sessionId)
-    }
+    fun getGameBySession(sessionId: String): GameModel? = gameRepository.findBySessionId(sessionId)
 }

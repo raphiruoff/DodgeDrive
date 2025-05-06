@@ -6,20 +6,21 @@ import org.springframework.grpc.server.service.GrpcService
 
 @GrpcService
 class ProfileController(
-    private val profileRepository: ProfileRepository
+    private val profileService: ProfileService
 ) : ProfileServiceGrpc.ProfileServiceImplBase() {
 
     override fun getProfile(
         request: Profile.UserIdRequest,
         responseObserver: StreamObserver<Profile.ProfileResponse>
     ) {
-        val profile = profileRepository.findByUsername(request.username)
+        val profile = profileService.getProfileByUsername(request.username)
 
         if (profile == null) {
             responseObserver.onError(
                 Status.NOT_FOUND
-                .withDescription("Profil nicht gefunden.")
-                .asRuntimeException())
+                    .withDescription("Profil nicht gefunden.")
+                    .asRuntimeException()
+            )
             return
         }
 
