@@ -124,4 +124,13 @@ class SessionController(
         responseObserver.onCompleted()
     }
 
+    override fun streamInvitations(
+        request: Session.PlayerRequest,
+        responseObserver: StreamObserver<Session.Invitation>
+    ) {
+        println("📡 gRPC-Stream aktiviert für: ${request.player}")
+        sessionService.registerInvitationStream(request.player, responseObserver)
+    }
+
+
 }

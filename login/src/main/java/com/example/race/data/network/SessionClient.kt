@@ -3,11 +3,15 @@ package com.example.race.data.network
 import de.ruoff.consistency.service.session.Session
 import de.ruoff.consistency.service.session.SessionServiceGrpc
 import io.grpc.ClientInterceptors
+import io.grpc.stub.StreamObserver
 
 class SessionClient : BaseClient() {
+
     private val jwtInterceptor = JwtClientInterceptor { TokenHolder.jwtToken }
     private val interceptedChannel = ClientInterceptors.intercept(channel, jwtInterceptor)
+
     private val stub = SessionServiceGrpc.newBlockingStub(interceptedChannel)
+    private val asyncStub = SessionServiceGrpc.newStub(interceptedChannel)
 
     fun createSession(playerA: String): String {
         val request = Session.CreateSessionRequest.newBuilder()
@@ -77,4 +81,13 @@ class SessionClient : BaseClient() {
         return stub.startGame(request).success
     }
 
+    fun streamInvitations(
+        username: String,
+        observer: StreamObserver<Session.Invitation>
+    ) {
+        val request = Session.PlayerRequest.newBuilder()
+            .setPlayer(username)
+            .build()
+        asyncStub.streamInvitations(request, observer)
+    }
 }

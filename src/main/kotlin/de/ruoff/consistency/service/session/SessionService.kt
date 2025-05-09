@@ -6,7 +6,9 @@ import org.springframework.data.redis.core.RedisTemplate
 import org.springframework.stereotype.Service
 import java.util.*
 import io.grpc.Status
+import io.grpc.stub.StreamObserver
 import org.springframework.beans.factory.annotation.Qualifier
+import java.util.concurrent.ConcurrentHashMap
 
 @Service
 class SessionService(
@@ -120,4 +122,22 @@ class SessionService(
         sessionRedisTemplate.opsForValue().set(key, session)
         return true
     }
+
+    private val invitationObservers = ConcurrentHashMap<String, MutableList<StreamObserver<Session.Invitation>>>()
+
+    fun registerInvitationStream(username: String, observer: StreamObserver<Session.Invitation>) {
+        invitationObservers.computeIfAbsent(username) { mutableListOf() }.add(observer)
+    }
+
+    fun notifyInvitation(event: SessionEvent) {
+        invitationObservers[event.receiver]?.forEach {
+            it.onNext(
+                Session.Invitation.newBuilder()
+                    .setSessionId(event.sessionId)
+                    .setRequester(event.requester)
+                    .build()
+            )
+        }
+    }
+
 }

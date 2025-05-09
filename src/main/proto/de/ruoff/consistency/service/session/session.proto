@@ -12,6 +12,7 @@ service SessionService {
     rpc GetInvitations (PlayerRequest) returns (GetInvitationsResponse);
     rpc AcceptInvitation (AcceptInvitationRequest) returns (AcceptInvitationResponse);
     rpc StartGame(StartGameRequest) returns (StartGameResponse);
+    rpc StreamInvitations (PlayerRequest) returns (stream Invitation);
 
 }
 

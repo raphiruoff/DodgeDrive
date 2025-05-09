@@ -11,9 +11,8 @@ import androidx.compose.ui.unit.dp
 import com.example.race.common.TokenUtils
 import com.example.race.data.network.AllClients
 import com.example.race.data.network.GameClient
-import com.example.race.data.network.NotificationClient
 import com.example.race.data.network.TokenHolder
-import de.ruoff.consistency.service.notification.InvitationNotification
+import de.ruoff.consistency.service.session.Session
 import io.grpc.stub.StreamObserver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -39,12 +38,11 @@ fun SessionScreen(
 
     var isLoading by remember { mutableStateOf(false) }
     var infoMessage by remember { mutableStateOf("") }
-    var invitations by remember { mutableStateOf<List<de.ruoff.consistency.service.session.Session.Invitation>>(emptyList()) }
+    var invitations by remember { mutableStateOf<List<Session.Invitation>>(emptyList()) }
 
     var countdown by remember { mutableStateOf(0) }
     var isCountingDown by remember { mutableStateOf(false) }
     val streamRegistered = remember { mutableStateOf(false) }
-    val notificationClient = remember { NotificationClient() }
 
     LaunchedEffect(Unit) {
         if (username == null) {
@@ -64,14 +62,10 @@ fun SessionScreen(
 
         if (!streamRegistered.value) {
             streamRegistered.value = true
-            notificationClient.streamInvitations(username, object : StreamObserver<InvitationNotification> {
-                override fun onNext(value: InvitationNotification) {
+            sessionClient.streamInvitations(username, object : StreamObserver<Session.Invitation> {
+                override fun onNext(value: Session.Invitation) {
                     coroutineScope.launch {
-                        val newInvite = de.ruoff.consistency.service.session.Session.Invitation.newBuilder()
-                            .setSessionId(value.sessionId)
-                            .setRequester(value.requester)
-                            .build()
-                        invitations = invitations + newInvite
+                        invitations = invitations + value
                         infoMessage = "📨 Neue Einladung von ${value.requester}"
                     }
                 }
