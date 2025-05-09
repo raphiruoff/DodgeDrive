@@ -1,5 +1,7 @@
 package de.ruoff.consistency.service.session
 
+import de.ruoff.consistency.service.session.events.SessionEvent
+import de.ruoff.consistency.service.session.events.SessionProducer
 import org.springframework.data.redis.core.RedisTemplate
 import org.springframework.stereotype.Service
 import java.util.*
@@ -12,7 +14,10 @@ class SessionService(
     private val sessionRedisTemplate: RedisTemplate<String, GameSession>,
 
     @Qualifier("invitationRedisTemplate")
-    private val invitationRedisTemplate: RedisTemplate<String, Invitation>
+    private val invitationRedisTemplate: RedisTemplate<String, Invitation>,
+
+    private val invitationProducer: SessionProducer
+
 ) {
 
     fun createSession(playerA: String): GameSession {
@@ -71,6 +76,10 @@ class SessionService(
 
         val invite = Invitation(session.sessionId, requester)
         invitationRedisTemplate.opsForList().rightPush("invite:$receiver", invite)
+
+        val event = SessionEvent(session.sessionId, requester, receiver)
+        invitationProducer.send(event)
+
         return true
     }
 

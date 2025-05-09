@@ -11,7 +11,10 @@ import androidx.compose.ui.unit.dp
 import com.example.race.common.TokenUtils
 import com.example.race.data.network.AllClients
 import com.example.race.data.network.GameClient
+import com.example.race.data.network.NotificationClient
 import com.example.race.data.network.TokenHolder
+import de.ruoff.consistency.service.notification.InvitationNotification
+import io.grpc.stub.StreamObserver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -56,6 +59,24 @@ fun SessionScreen(
         } catch (e: Exception) {
             infoMessage = "Fehler beim Initialisieren:\n${e::class.simpleName}: ${e.message}"
         }
+
+        NotificationClient().streamInvitations(username, object :
+            StreamObserver<InvitationNotification> {
+            override fun onNext(value: InvitationNotification) {
+                coroutineScope.launch {
+                    invitations = invitations + de.ruoff.consistency.service.session.Session.Invitation.newBuilder()
+                        .setSessionId(value.sessionId)
+                        .setRequester(value.requester)
+                        .build()
+                }
+            }
+
+            override fun onError(t: Throwable) {
+                println("Fehler bei StreamInvitations: ${t.message}")
+            }
+
+            override fun onCompleted() {}
+        })
     }
 
     LaunchedEffect(sessionId) {
