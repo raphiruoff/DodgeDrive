@@ -54,7 +54,11 @@ fun FriendsScreen(
                         override fun onNext(value: FriendRequest) {
                             coroutineScope.launch {
                                 refreshFriendData()
-                                infoMessage = "📨 Neue Anfrage von ${value.fromUsername}"
+                                infoMessage = when {
+                                    pendingRequests.contains(value.fromUsername) -> "📨 Neue Anfrage von ${value.fromUsername}"
+                                    friends.contains(value.fromUsername) -> "🤝 ${value.fromUsername} hat deine Anfrage angenommen!"
+                                    else -> "🔔 Neues Ereignis von ${value.fromUsername}"
+                                }
                             }
                         }
 

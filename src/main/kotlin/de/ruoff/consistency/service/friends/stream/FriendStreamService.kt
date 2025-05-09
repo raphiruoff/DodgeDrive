@@ -26,4 +26,16 @@ class FriendStreamService {
         }
     }
 
+    fun sendFriendAcceptedNotification(from: String, to: String) {
+        observers[from]?.forEach {
+            it.onNext(
+                FriendRequest.newBuilder()
+                    .setFromUsername(to)
+                    .setToUsername(from)
+                    .build()
+            )
+        }
+    }
+
+
 }

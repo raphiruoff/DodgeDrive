@@ -7,7 +7,15 @@ import org.springframework.stereotype.Service
 class FriendProdcuer(
     private val kafkaTemplate: KafkaTemplate<String, FriendEvent>
 ) {
-    fun send(event: FriendEvent) {
-        kafkaTemplate.send("friend-request-topic", event.toUsername, event)
+    private val topic = "friend-request-topic"
+
+    fun sendRequest(from: String, to: String) {
+        val event = FriendEvent(from, to, FriendEventType.REQUESTED)
+        kafkaTemplate.send(topic, to, event)
+    }
+
+    fun sendAccepted(from: String, to: String) {
+        val event = FriendEvent(from, to, FriendEventType.ACCEPTED)
+        kafkaTemplate.send(topic, from, event)
     }
 }

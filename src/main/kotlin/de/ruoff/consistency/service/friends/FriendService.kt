@@ -1,6 +1,5 @@
 package de.ruoff.consistency.service.friends
 
-import de.ruoff.consistency.service.friends.events.FriendEvent
 import de.ruoff.consistency.service.friends.events.FriendProdcuer
 import de.ruoff.consistency.service.profile.ProfileRepository
 import org.springframework.stereotype.Service
@@ -31,7 +30,7 @@ class FriendService(
         )
         friendRepository.save(request)
 
-        friendEventProducer.send(FriendEvent(fromUsername = from, toUsername = to))
+        friendEventProducer.sendRequest(from, to)
 
         return "Anfrage erfolgreich gesendet!"
     }
@@ -40,6 +39,9 @@ class FriendService(
         val pending = friendRepository.findByRequesterUsernameAndReceiverUsername(from, to)
         return if (pending != null && !pending.accepted) {
             friendRepository.save(pending.copy(accepted = true))
+
+            friendEventProducer.sendAccepted(to, from)
+
             true
         } else {
             false
