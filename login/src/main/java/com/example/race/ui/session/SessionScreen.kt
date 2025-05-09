@@ -43,8 +43,10 @@ fun SessionScreen(
 
     var countdown by remember { mutableStateOf(0) }
     var isCountingDown by remember { mutableStateOf(false) }
+    val streamRegistered = remember { mutableStateOf(false) }
+    val notificationClient = remember { NotificationClient() }
 
-    LaunchedEffect(username) {
+    LaunchedEffect(Unit) {
         if (username == null) {
             infoMessage = "Benutzername konnte nicht gelesen werden"
             return@LaunchedEffect
@@ -60,23 +62,24 @@ fun SessionScreen(
             infoMessage = "Fehler beim Initialisieren:\n${e::class.simpleName}: ${e.message}"
         }
 
-        NotificationClient().streamInvitations(username, object :
-            StreamObserver<InvitationNotification> {
-            override fun onNext(value: InvitationNotification) {
-                coroutineScope.launch {
-                    invitations = invitations + de.ruoff.consistency.service.session.Session.Invitation.newBuilder()
-                        .setSessionId(value.sessionId)
-                        .setRequester(value.requester)
-                        .build()
+        if (!streamRegistered.value) {
+            streamRegistered.value = true
+            notificationClient.streamInvitations(username, object : StreamObserver<InvitationNotification> {
+                override fun onNext(value: InvitationNotification) {
+                    coroutineScope.launch {
+                        val newInvite = de.ruoff.consistency.service.session.Session.Invitation.newBuilder()
+                            .setSessionId(value.sessionId)
+                            .setRequester(value.requester)
+                            .build()
+                        invitations = invitations + newInvite
+                        infoMessage = "📨 Neue Einladung von ${value.requester}"
+                    }
                 }
-            }
 
-            override fun onError(t: Throwable) {
-                println("Fehler bei StreamInvitations: ${t.message}")
-            }
-
-            override fun onCompleted() {}
-        })
+                override fun onError(t: Throwable) {}
+                override fun onCompleted() {}
+            })
+        }
     }
 
     LaunchedEffect(sessionId) {
@@ -106,42 +109,26 @@ fun SessionScreen(
                             }
                             countdown = 0
 
-                            try {
-                                val safeSessionId = sessionId ?: return@launch
-                                val safeUsername = username
-                                val safePartner = sessionPartner
+                            val safeSessionId = sessionId ?: return@launch
+                            val safeUsername = username
+                            val safePartner = sessionPartner
 
-                                if (safePartner != null) {
-                                    val gameId = withContext(Dispatchers.IO) {
-                                        GameClient().getGameBySession(safeSessionId)?.gameId
-                                            ?: GameClient().createGame(safeSessionId, safeUsername, safePartner)
-                                    }
+                            if (safePartner != null) {
+                                val gameId = withContext(Dispatchers.IO) {
+                                    GameClient().getGameBySession(safeSessionId)?.gameId
+                                        ?: GameClient().createGame(safeSessionId, safeUsername, safePartner)
+                                }
 
-                                    if (!gameId.isNullOrBlank()) {
-                                        onNavigateToRaceGame(gameId, username)
-                                    } else {
-                                        infoMessage = "❌ Spiel konnte nicht erstellt werden (gameId leer)"
-                                        isCountingDown = false
-                                    }
-
+                                if (!gameId.isNullOrBlank()) {
+                                    onNavigateToRaceGame(gameId, username)
                                 } else {
-                                    infoMessage = "❌ Kein gültiger Mitspieler"
+                                    infoMessage = "❌ Spiel konnte nicht erstellt werden"
                                     isCountingDown = false
                                 }
-                            } catch (e: Exception) {
-                                val errorDetails = when (e) {
-                                    is io.grpc.StatusRuntimeException -> {
-                                        val status = e.status
-                                        val cause = e.cause?.message ?: "keine Detailursache"
-                                        "gRPC-Fehler: ${status.code} - ${status.description} (Ursache: $cause)"
-                                    }
-                                    else -> "Allgemeiner Fehler: ${e::class.simpleName} - ${e.message}"
-                                }
-
-                                infoMessage = "❌ Spiel konnte nicht erstellt werden:\n$errorDetails"
+                            } else {
+                                infoMessage = "❌ Kein gültiger Mitspieler"
                                 isCountingDown = false
                             }
-
                         }
                         break
                     }
@@ -194,26 +181,18 @@ fun SessionScreen(
                                 Button(
                                     onClick = {
                                         coroutineScope.launch {
-                                            if (username == null) {
-                                                infoMessage = "Benutzername fehlt"
-                                                return@launch
-                                            }
+                                            if (username == null) return@launch
                                             if (sessionId == null) {
                                                 sessionId = withContext(Dispatchers.IO) {
                                                     sessionClient.createSession(username)
                                                 }
                                             }
                                             invitedFriends.add(friend)
-                                            try {
-                                                val success = withContext(Dispatchers.IO) {
-                                                    sessionClient.invitePlayer(username, friend)
-                                                }
-                                                if (!success) {
-                                                    infoMessage = "Einladung an $friend fehlgeschlagen"
-                                                    invitedFriends.remove(friend)
-                                                }
-                                            } catch (e: Exception) {
-                                                infoMessage = "Fehler beim Einladen:\n${e::class.simpleName}: ${e.message}"
+                                            val success = withContext(Dispatchers.IO) {
+                                                sessionClient.invitePlayer(username, friend)
+                                            }
+                                            if (!success) {
+                                                infoMessage = "Einladung an $friend fehlgeschlagen"
                                                 invitedFriends.remove(friend)
                                             }
                                         }
@@ -258,8 +237,6 @@ fun SessionScreen(
                                             sessionPartner = if (it.playerA == username) it.playerB else it.playerA
                                             infoMessage = "✅ Du bist in einer Session mit ${sessionPartner ?: "unbekannt"}"
                                             sessionStatus = it.status
-                                        } ?: run {
-                                            infoMessage = "Session konnte nicht geladen werden"
                                         }
                                     } else {
                                         infoMessage = "Fehler beim Annehmen der Einladung"
@@ -296,20 +273,14 @@ fun SessionScreen(
             onClick = {
                 coroutineScope.launch {
                     if (sessionId != null && username != null && sessionStatus == "ACTIVE") {
-                        try {
-                            val started = withContext(Dispatchers.IO) {
-                                sessionClient.startGame(sessionId!!, username)
-                            }
-                            if (!started) {
-                                infoMessage = "Spielstart fehlgeschlagen (Backend false)."
-                            } else {
-                                sessionStatus = "WAITING_FOR_START"
-                            }
-                        } catch (e: Exception) {
-                            infoMessage = "Fehler beim Spielstart:\n${e::class.simpleName}: ${e.message}"
+                        val started = withContext(Dispatchers.IO) {
+                            sessionClient.startGame(sessionId!!, username)
                         }
-                    } else {
-                        infoMessage = "Spielstart aktuell nicht erlaubt (Status: $sessionStatus)"
+                        if (!started) {
+                            infoMessage = "Spielstart fehlgeschlagen"
+                        } else {
+                            sessionStatus = "WAITING_FOR_START"
+                        }
                     }
                 }
             },
