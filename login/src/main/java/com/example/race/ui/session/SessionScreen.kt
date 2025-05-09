@@ -26,7 +26,7 @@ fun SessionScreen(
 ) {
     val username = remember { TokenUtils.decodeUsername(TokenHolder.jwtToken) }
     val sessionClient = remember { AllClients.sessionClient }
-    val friendClient = remember { AllClients.friendListClient }
+    val friendClient = remember { AllClients.friendClient }
     val coroutineScope = rememberCoroutineScope()
 
     var friends by remember { mutableStateOf<List<String>>(emptyList()) }

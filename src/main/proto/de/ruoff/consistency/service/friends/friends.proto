@@ -7,6 +7,8 @@ service FriendService {
     rpc DeclineRequest(FriendRequest) returns (FriendResponse);
     rpc GetFriends(UserIdRequest) returns (FriendListResponse);
     rpc GetPendingRequests(UserIdRequest) returns (PendingRequestListResponse);
+    rpc StreamRequests(UserIdRequest) returns (stream FriendRequest);
+
 }
 
 message FriendRequest {

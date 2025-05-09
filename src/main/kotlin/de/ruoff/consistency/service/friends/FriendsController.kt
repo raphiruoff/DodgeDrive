@@ -4,10 +4,12 @@ import io.grpc.Status
 import io.grpc.stub.StreamObserver
 import org.springframework.grpc.server.service.GrpcService
 import de.ruoff.consistency.service.friends.Friends.*
+import de.ruoff.consistency.service.friends.stream.FriendStreamService
 
 @GrpcService
 class FriendsController(
-    private val friendService: FriendService
+    private val friendService: FriendService,
+    private val friendStreamService: FriendStreamService
 ) : FriendServiceGrpc.FriendServiceImplBase() {
 
     override fun sendRequest(request: FriendRequest, responseObserver: StreamObserver<FriendResponse>) {
@@ -71,4 +73,9 @@ class FriendsController(
             responseObserver.onError(Status.INTERNAL.withDescription("Fehler beim Abrufen der Freunde").withCause(e).asRuntimeException())
         }
     }
+
+    override fun streamRequests(request: UserIdRequest, responseObserver: StreamObserver<FriendRequest>) {
+        friendStreamService.register(request.username, responseObserver)
+    }
+
 }

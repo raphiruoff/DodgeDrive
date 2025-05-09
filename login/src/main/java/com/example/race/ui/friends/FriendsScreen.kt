@@ -8,9 +8,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.race.common.TokenUtils
-import com.example.race.data.network.FriendListClient
+import com.example.race.data.network.FriendClient
 import com.example.race.data.network.ProfileClient
 import com.example.race.data.network.TokenHolder
+import de.ruoff.consistency.service.friends.Friends.FriendRequest
+import io.grpc.stub.StreamObserver
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun FriendsScreen(
@@ -18,20 +23,45 @@ fun FriendsScreen(
 ) {
     val username = remember { TokenUtils.decodeUsername(TokenHolder.jwtToken) }
     val profileClient = remember { ProfileClient() }
-    val friendClient = remember { FriendListClient() }
+    val friendClient = remember { FriendClient() }
+    val coroutineScope = rememberCoroutineScope()
 
     var profile by remember { mutableStateOf<Profile.ProfileResponse?>(null) }
     var friends by remember { mutableStateOf<List<String>>(emptyList()) }
     var pendingRequests by remember { mutableStateOf<List<String>>(emptyList()) }
     var newFriendUsername by remember { mutableStateOf("") }
     var infoMessage by remember { mutableStateOf("") }
+    val streamRegistered = remember { mutableStateOf(false) }
+
+    fun refreshFriendData() {
+        coroutineScope.launch {
+            username?.let {
+                friends = withContext(Dispatchers.IO) { friendClient.getFriends(it) }
+                pendingRequests = withContext(Dispatchers.IO) { friendClient.getPendingRequests(it) }
+            }
+        }
+    }
 
     LaunchedEffect(username) {
         username?.let {
             try {
                 profile = profileClient.loadProfile(it)
-                friends = friendClient.getFriends(it)
-                pendingRequests = friendClient.getPendingRequests(it)
+                refreshFriendData()
+
+                if (!streamRegistered.value) {
+                    streamRegistered.value = true
+                    friendClient.streamRequests(it, object : StreamObserver<FriendRequest> {
+                        override fun onNext(value: FriendRequest) {
+                            coroutineScope.launch {
+                                refreshFriendData()
+                                infoMessage = "📨 Neue Anfrage von ${value.fromUsername}"
+                            }
+                        }
+
+                        override fun onError(t: Throwable) {}
+                        override fun onCompleted() {}
+                    })
+                }
             } catch (e: Exception) {
                 infoMessage = "❌ Fehler beim Laden: ${e.message}"
             }
@@ -44,14 +74,12 @@ fun FriendsScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Header
         Text(
             text = "👥 Deine Freunde",
             style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.align(Alignment.CenterHorizontally)
         )
 
-        // Profil-Karte
         profile?.let {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -64,7 +92,6 @@ fun FriendsScreen(
             }
         }
 
-        // Freundeliste
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
@@ -82,7 +109,6 @@ fun FriendsScreen(
             }
         }
 
-        // Anfragen
         if (pendingRequests.isNotEmpty()) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -103,8 +129,7 @@ fun FriendsScreen(
                                 Button(onClick = {
                                     username?.let { currentUser ->
                                         infoMessage = friendClient.acceptRequest(requester, currentUser)
-                                        pendingRequests = friendClient.getPendingRequests(currentUser)
-                                        friends = friendClient.getFriends(currentUser)
+                                        refreshFriendData()
                                     }
                                 }) {
                                     Text("✔️")
@@ -113,7 +138,7 @@ fun FriendsScreen(
                                 Button(onClick = {
                                     username?.let { currentUser ->
                                         infoMessage = friendClient.declineRequest(requester, currentUser)
-                                        pendingRequests = friendClient.getPendingRequests(currentUser)
+                                        refreshFriendData()
                                     }
                                 }) {
                                     Text("❌")
@@ -125,7 +150,6 @@ fun FriendsScreen(
             }
         }
 
-        // Neue Anfrage
         OutlinedTextField(
             value = newFriendUsername,
             onValueChange = { newFriendUsername = it },
@@ -149,7 +173,6 @@ fun FriendsScreen(
             Text("➕ Anfrage senden")
         }
 
-        // Statusnachricht
         if (infoMessage.isNotBlank()) {
             Text(
                 text = infoMessage,
@@ -168,4 +191,3 @@ fun FriendsScreen(
         }
     }
 }
-
