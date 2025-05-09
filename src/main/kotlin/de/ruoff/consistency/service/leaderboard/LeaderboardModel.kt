@@ -1,19 +1,12 @@
 package de.ruoff.consistency.service.leaderboard
 
-import jakarta.persistence.*
+import org.springframework.data.annotation.Id
+import org.springframework.data.mongodb.core.mapping.Document
 
-@Entity
-@Table(name = "leaderboard")
+@Document(collection = "leaderboard")
 data class LeaderboardModel(
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    val id: Long = 0,
-
-    @Column(nullable = false, unique = true)
-    val username: String = "",
-
-    @Column(nullable = false)
-    var highscore: Int = 0
+    val id: String? = null,
+    val username: String,
+    var highscore: Int
 )
-
-
