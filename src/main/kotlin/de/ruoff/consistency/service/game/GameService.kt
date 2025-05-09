@@ -1,16 +1,13 @@
 package de.ruoff.consistency.service.game
 
-import de.ruoff.consistency.events.HighscoreEvent
 import de.ruoff.consistency.service.game.events.ScoreEvent
 import de.ruoff.consistency.service.game.events.ScoreProducer
-import de.ruoff.consistency.service.profile.ProfileRepository
 import org.springframework.stereotype.Service
 import java.util.*
 
 @Service
 class GameService(
     private val gameRepository: GameRepository,
-    private val profileRepository: ProfileRepository,
     private val scoreProducer: ScoreProducer
 ) {
 

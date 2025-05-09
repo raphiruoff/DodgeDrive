@@ -25,12 +25,12 @@ class ProfileController(
         }
 
         val response = Profile.ProfileResponse.newBuilder()
-            .setDisplayName(profile.displayName)
-            .setBio(profile.bio ?: "")
+            .setUsername(profile.username)
             .build()
 
         responseObserver.onNext(response)
         responseObserver.onCompleted()
     }
 }
+
 

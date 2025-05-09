@@ -59,10 +59,7 @@ fun FriendsScreen(
                 elevation = CardDefaults.cardElevation(4.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("👤 Profil: ${it.displayName}", style = MaterialTheme.typography.titleMedium)
-                    if (it.bio.isNotBlank()) {
-                        Text("📄 Bio: ${it.bio}", style = MaterialTheme.typography.bodyMedium)
-                    }
+                    Text("👤 Profil: ${it.username}", style = MaterialTheme.typography.titleMedium)
                 }
             }
         }

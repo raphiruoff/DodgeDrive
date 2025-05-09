@@ -35,11 +35,8 @@ class AuthController(
             val user = AuthModel(username = request.username, password = hashedPassword)
             authRepository.save(user)
 
-            // Neues Profil automatisch anlegen
             val profile = ProfileModel(
                 username = request.username,
-                displayName = request.username,
-                bio = ""
             )
             profileRepository.save(profile)
 

@@ -10,14 +10,7 @@ data class ProfileModel(
     val id: Long = 0,
 
     @Column(nullable = false, unique = true)
-    val username: String = "",
-
-    @Column(nullable = false)
-    val displayName: String = "",
-
-    val bio: String? = null,
-
-    var highscore: Int = 0
-
+    val username: String = ""
 )
+
 

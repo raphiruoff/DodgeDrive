@@ -1,34 +1,37 @@
 package de.ruoff.consistency.service.leaderboard.events
 
 import de.ruoff.consistency.events.HighscoreEvent
+import de.ruoff.consistency.service.game.events.ScoreEvent
 import de.ruoff.consistency.service.leaderboard.LeaderboardModel
 import de.ruoff.consistency.service.leaderboard.LeaderboardRepository
 import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.stereotype.Component
 
 @Component
-class HighscoreListener(
+class ScoreListener(
     private val leaderboardRepository: LeaderboardRepository
 ) {
     @KafkaListener(
-        topics = ["highscore-topic"],
+        topics = ["score-topic"],
         groupId = "leaderboard-group",
         containerFactory = "leaderboardKafkaListenerContainerFactory"
     )
-    fun consume(event: HighscoreEvent) {
+    fun consume(event: ScoreEvent) {
         val existing = leaderboardRepository.findByUsername(event.username)
         if (existing != null) {
-            if (event.highscore > existing.highscore) {
-                existing.highscore = event.highscore
+            if (event.score > existing.highscore) {
+                existing.highscore = event.score
                 leaderboardRepository.save(existing)
             }
         } else {
             leaderboardRepository.save(
                 LeaderboardModel(
                     username = event.username,
-                    highscore = event.highscore
+                    highscore = event.score
                 )
             )
         }
+        println("📥 Received score event: ${event.username} → ${event.score}")
     }
 }
+

@@ -9,6 +9,5 @@ message UserIdRequest {
 }
 
 message ProfileResponse {
-    string displayName = 1;
-    string bio = 2;
+    string username = 1;
 }
