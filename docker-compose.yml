@@ -27,6 +27,8 @@ services:
   springboot-app:
     build: .
     container_name: springboot-app
+    volumes:
+      - ./export:/app/export
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/profiledatabase
       SPRING_DATASOURCE_USERNAME: postgres

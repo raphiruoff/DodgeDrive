@@ -1,5 +1,7 @@
 package de.ruoff.consistency.service.game
 
+import de.ruoff.consistency.service.game.events.GameLogEvent
+import de.ruoff.consistency.service.game.events.GameLogProducer
 import de.ruoff.consistency.service.game.events.ScoreEvent
 import de.ruoff.consistency.service.game.events.ScoreProducer
 import org.springframework.stereotype.Service
@@ -8,10 +10,16 @@ import java.util.*
 @Service
 class GameService(
     private val gameRepository: GameRepository,
-    private val scoreProducer: ScoreProducer
+    private val scoreProducer: ScoreProducer,
+    private val gameLogProducer: GameLogProducer
 ) {
 
-    fun createGame(sessionId: String, playerA: String, playerB: String): GameModel {
+    fun createGame(
+        sessionId: String,
+        playerA: String,
+        playerB: String,
+        originTimestamp: Long?
+    ): GameModel {
         println("🎮 Creating game for session $sessionId with players A=$playerA, B=$playerB")
 
         gameRepository.findBySessionId(sessionId)?.let {
@@ -31,13 +39,43 @@ class GameService(
             playerB = playerB
         )
         gameRepository.save(game)
+
+        originTimestamp?.let {
+            gameLogProducer.send(
+                GameLogEvent(
+                    gameId = gameId,
+                    username = playerA,
+                    eventType = "game_created",
+                    originTimestamp = it
+                )
+            )
+        }
+
         return game
     }
 
     fun getGame(gameId: String): GameModel? = gameRepository.findById(gameId)
 
-    fun updateScore(gameId: String, player: String, score: Int): Boolean {
-        return gameRepository.updateScore(gameId, player, score)
+    fun updateScore(
+        gameId: String,
+        player: String,
+        score: Int,
+        originTimestamp: Long?
+    ): Boolean {
+        val success = gameRepository.updateScore(gameId, player, score)
+
+        if (success && originTimestamp != null) {
+            gameLogProducer.send(
+                GameLogEvent(
+                    gameId = gameId,
+                    username = player,
+                    eventType = "score_updated",
+                    originTimestamp = originTimestamp
+                )
+            )
+        }
+
+        return success
     }
 
     fun finishGame(gameId: String, winner: String): Boolean {
@@ -55,7 +93,6 @@ class GameService(
 
         return true
     }
-
 
     fun deleteGame(gameId: String): Boolean = gameRepository.delete(gameId)
 

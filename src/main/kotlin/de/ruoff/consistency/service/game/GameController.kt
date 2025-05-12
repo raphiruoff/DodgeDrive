@@ -15,11 +15,16 @@ class GameController(
         responseObserver: StreamObserver<CreateGameResponse>
     ) {
         try {
-            if (request.sessionId.isNullOrBlank() || request.playerA.isNullOrBlank() || request.playerB.isNullOrBlank()) {
+            if (request.sessionId.isBlank() || request.playerA.isBlank() || request.playerB.isBlank()) {
                 throw IllegalArgumentException("SessionId, playerA und playerB dürfen nicht leer sein")
             }
 
-            val game = gameService.createGame(request.sessionId, request.playerA, request.playerB)
+            val game = gameService.createGame(
+                sessionId = request.sessionId,
+                playerA = request.playerA,
+                playerB = request.playerB,
+                originTimestamp = request.originTimestamp
+            )
 
             val response = CreateGameResponse.newBuilder()
                 .setGameId(game.gameId)
@@ -51,7 +56,7 @@ class GameController(
                 .setPlayerB(it.playerB)
                 .setStatus(it.status.name)
                 .setWinner(it.winner ?: "")
-                .putAllScores(it.scores.mapValues { entry -> entry.value })
+                .putAllScores(it.scores)
                 .build()
         } ?: GetGameResponse.getDefaultInstance()
 
@@ -97,12 +102,17 @@ class GameController(
         }
     }
 
-
     override fun updateScore(
         request: UpdateScoreRequest,
         responseObserver: StreamObserver<UpdateScoreResponse>
     ) {
-        val success = gameService.updateScore(request.gameId, request.player, request.score)
+        val success = gameService.updateScore(
+            gameId = request.gameId,
+            player = request.player,
+            score = request.score,
+            originTimestamp = request.originTimestamp
+        )
+
         val response = UpdateScoreResponse.newBuilder().setSuccess(success).build()
         responseObserver.onNext(response)
         responseObserver.onCompleted()

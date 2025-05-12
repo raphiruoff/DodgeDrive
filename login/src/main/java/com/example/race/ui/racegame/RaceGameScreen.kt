@@ -1,6 +1,5 @@
 package com.example.race.ui.racegame
 
-import android.content.Context
 import android.os.SystemClock
 import android.util.Log
 import androidx.compose.foundation.Image
@@ -12,7 +11,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
@@ -27,10 +25,6 @@ import com.example.race.ui.racegame.components.Obstacle
 import com.example.race.ui.racegame.components.ScrollingRaceTrack
 import com.example.race.ui.racegame.state.CarState
 import kotlinx.coroutines.delay
-import java.io.File
-import java.io.FileWriter
-import java.text.SimpleDateFormat
-import java.util.*
 import kotlin.math.roundToInt
 
 fun checkCollision(car: CarState, obstacle: Obstacle): Boolean {
@@ -44,9 +38,6 @@ fun checkCollision(car: CarState, obstacle: Obstacle): Boolean {
 
 @Composable
 fun RaceGameScreen(navController: NavHostController, gameId: String, username: String) {
-    val context = LocalContext.current
-    val runId = remember { System.currentTimeMillis().toInt() }
-
     val carState = remember { mutableStateOf(CarState()) }
     val obstacles = remember { mutableStateListOf<Obstacle>() }
     val score = remember { mutableStateOf(0) }
@@ -57,19 +48,6 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
     val gameStartTime = remember { SystemClock.elapsedRealtime() }
     var gameStartDelay by remember { mutableStateOf(0L) }
     var opponentUpdateDelay by remember { mutableStateOf(0L) }
-
-    fun logToCSV(context: Context, runId: Int, eventType: String, delay: Long) {
-        val file = File(context.filesDir, "race_metrics.csv")
-        val exists = file.exists()
-        FileWriter(file, true).use { writer ->
-            if (!exists) {
-                writer.append("run_id;timestamp;username;event_type;delay_ms\n")
-            }
-            val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
-            writer.append("$runId;$timestamp;Raphi;$eventType;$delay\n")
-        }
-    }
-
 
     Column(modifier = Modifier.fillMaxSize()) {
         BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -88,7 +66,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
 
                 gameStartDelay = SystemClock.elapsedRealtime() - gameStartTime
                 Log.d("RaceGameScreen", "Spiel gestartet nach $gameStartDelay ms")
-                logToCSV(context, runId, "game_start", gameStartDelay)
+                AllClients.logClient.logEvent(gameId, username, "game_start", gameStartDelay)
             }
 
             if (!isGameOver.value) {
@@ -138,7 +116,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                         val pollEnd = SystemClock.elapsedRealtime()
                         opponentUpdateDelay = pollEnd - pollStart
                         Log.d("RaceGameScreen", "🔁 Gegnerstand geladen in ${opponentUpdateDelay}ms")
-                        logToCSV(context, runId, "opponent_update", opponentUpdateDelay)
+                        AllClients.logClient.logEvent(gameId, username, "opponent_update", opponentUpdateDelay)
 
                         val opponent = when (username) {
                             game?.playerA -> game.playerB
@@ -163,7 +141,9 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 Image(
                     painter = painterResource(id = R.drawable.obstacle),
                     contentDescription = "Hindernis",
-                    modifier = Modifier.offset { IntOffset(it.x.roundToInt(), it.y.roundToInt()) }.size(48.dp)
+                    modifier = Modifier
+                        .offset { IntOffset(it.x.roundToInt(), it.y.roundToInt()) }
+                        .size(48.dp)
                 )
             }
 
@@ -171,7 +151,9 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 text = "Score: ${score.value}",
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.align(Alignment.TopEnd).padding(16.dp),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp),
                 color = Color.White
             )
 
@@ -182,13 +164,17 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 },
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.align(Alignment.TopStart).padding(16.dp),
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(16.dp),
                 color = if (isOpponentGameOver.value) Color.Red else Color.Yellow
             )
 
             if (!isGameOver.value) {
                 Row(
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 24.dp),
                     horizontalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
                     Button(onClick = {
@@ -208,10 +194,13 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
             if (isGameOver.value) {
                 LaunchedEffect(true) {
                     AllClients.gameClient.finishGame(gameId, username)
+                    AllClients.logClient.exportLogs(gameId)
                 }
 
                 Column(
-                    modifier = Modifier.fillMaxSize().background(Color(0x99000000)),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0x99000000)),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {

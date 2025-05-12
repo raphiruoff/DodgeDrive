@@ -15,6 +15,7 @@ message CreateGameRequest {
     string sessionId = 1;
     string playerA = 2;
     string playerB = 3;
+    int64 originTimestamp = 4;
 }
 
 message CreateGameResponse {
@@ -45,6 +46,7 @@ message UpdateScoreRequest {
     string gameId = 1;
     string player = 2;
     int32 score = 3;
+    int64 originTimestamp = 4;
 }
 
 message UpdateScoreResponse {
