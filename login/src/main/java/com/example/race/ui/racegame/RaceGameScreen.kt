@@ -1,5 +1,7 @@
 package com.example.race.ui.racegame
 
+import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -10,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
@@ -17,13 +20,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.login.R
-import com.example.race.data.network.GameClient
+import com.example.race.data.network.AllClients
 import com.example.race.navigation.Routes
 import com.example.race.ui.racegame.components.Car
 import com.example.race.ui.racegame.components.Obstacle
 import com.example.race.ui.racegame.components.ScrollingRaceTrack
 import com.example.race.ui.racegame.state.CarState
 import kotlinx.coroutines.delay
+import java.io.File
+import java.io.FileWriter
+import java.text.SimpleDateFormat
+import java.util.*
 import kotlin.math.roundToInt
 
 fun checkCollision(car: CarState, obstacle: Obstacle): Boolean {
@@ -37,12 +44,32 @@ fun checkCollision(car: CarState, obstacle: Obstacle): Boolean {
 
 @Composable
 fun RaceGameScreen(navController: NavHostController, gameId: String, username: String) {
+    val context = LocalContext.current
+    val runId = remember { System.currentTimeMillis().toInt() }
+
     val carState = remember { mutableStateOf(CarState()) }
     val obstacles = remember { mutableStateListOf<Obstacle>() }
     val score = remember { mutableStateOf(0) }
     val opponentScore = remember { mutableStateOf(0) }
     val isGameOver = remember { mutableStateOf(false) }
     val isOpponentGameOver = remember { mutableStateOf(false) }
+
+    val gameStartTime = remember { SystemClock.elapsedRealtime() }
+    var gameStartDelay by remember { mutableStateOf(0L) }
+    var opponentUpdateDelay by remember { mutableStateOf(0L) }
+
+    fun logToCSV(context: Context, runId: Int, eventType: String, delay: Long) {
+        val file = File(context.filesDir, "race_metrics.csv")
+        val exists = file.exists()
+        FileWriter(file, true).use { writer ->
+            if (!exists) {
+                writer.append("run_id;timestamp;username;event_type;delay_ms\n")
+            }
+            val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+            writer.append("$runId;$timestamp;Raphi;$eventType;$delay\n")
+        }
+    }
+
 
     Column(modifier = Modifier.fillMaxSize()) {
         BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -54,14 +81,16 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
             val streetLeft = screenWidth * 1f / 6f - offsetFix
             val streetRight = screenWidth * 5f / 6f - carWidth - offsetFix
 
-            // Startposition
-            LaunchedEffect(screenWidth, screenHeight) {
+            LaunchedEffect(Unit) {
                 val centerX = (streetLeft + streetRight) / 2f
                 val lowerY = screenHeight * 3f / 4f
                 carState.value = CarState(carX = centerX, carY = lowerY, angle = 0f)
+
+                gameStartDelay = SystemClock.elapsedRealtime() - gameStartTime
+                Log.d("RaceGameScreen", "Spiel gestartet nach $gameStartDelay ms")
+                logToCSV(context, runId, "game_start", gameStartDelay)
             }
 
-            // Hindernisse generieren
             if (!isGameOver.value) {
                 LaunchedEffect(Unit) {
                     while (true) {
@@ -75,7 +104,6 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                     }
                 }
 
-                // Hindernisse bewegen + Kollision prüfen
                 LaunchedEffect(Unit) {
                     while (true) {
                         val iterator = obstacles.iterator()
@@ -94,20 +122,23 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                     }
                 }
 
-                // Score updaten
                 LaunchedEffect(score.value) {
-                    GameClient().updateScore(gameId, username, score.value)
+                    AllClients.gameClient.updateScore(gameId, username, score.value)
                 }
 
-                // Gegnerstand abrufen + Status prüfen
                 LaunchedEffect(gameId, isGameOver.value) {
                     while (!isGameOver.value && !isOpponentGameOver.value) {
+                        val pollStart = SystemClock.elapsedRealtime()
                         val game = try {
-                            GameClient().getGame(gameId)
+                            AllClients.gameClient.getGame(gameId)
                         } catch (e: Exception) {
                             Log.e("RaceGameScreen", "❌ Fehler beim Laden des Spiels", e)
                             null
                         }
+                        val pollEnd = SystemClock.elapsedRealtime()
+                        opponentUpdateDelay = pollEnd - pollStart
+                        Log.d("RaceGameScreen", "🔁 Gegnerstand geladen in ${opponentUpdateDelay}ms")
+                        logToCSV(context, runId, "opponent_update", opponentUpdateDelay)
 
                         val opponent = when (username) {
                             game?.playerA -> game.playerB
@@ -126,7 +157,6 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 }
             }
 
-            // Rennstrecke & Autos
             ScrollingRaceTrack()
             Car(carState = carState.value)
             obstacles.forEach {
@@ -137,7 +167,6 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 )
             }
 
-            // Punktestände
             Text(
                 text = "Score: ${score.value}",
                 fontSize = 28.sp,
@@ -157,7 +186,6 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 color = if (isOpponentGameOver.value) Color.Red else Color.Yellow
             )
 
-            // Steuerung
             if (!isGameOver.value) {
                 Row(
                     modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
@@ -177,10 +205,9 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 }
             }
 
-            // Game Over
             if (isGameOver.value) {
                 LaunchedEffect(true) {
-                    GameClient().finishGame(gameId, username)
+                    AllClients.gameClient.finishGame(gameId, username)
                 }
 
                 Column(
