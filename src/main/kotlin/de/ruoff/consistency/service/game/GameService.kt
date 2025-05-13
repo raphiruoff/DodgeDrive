@@ -32,14 +32,18 @@ class GameService(
         }
 
         val gameId = UUID.randomUUID().toString()
-        val obstacles = generateObstacles()
+        val startAt = System.currentTimeMillis() + 3000L
+        val obstacles = generateObstacles(gameId, startAt)
+
         val game = GameModel(
             gameId = gameId,
             sessionId = sessionId,
             playerA = playerA,
             playerB = playerB,
-            obstacles = obstacles.toMutableList()
+            obstacles = obstacles.toMutableList(),
+            startAt = startAt
         )
+
         gameRepository.save(game)
 
         originTimestamp?.let {
@@ -57,21 +61,22 @@ class GameService(
     }
 
 
-    private fun generateObstacles(): List<ObstacleModel> {
+    private fun generateObstacles(gameId: String, startAt: Long): List<ObstacleModel> {
         val obstacleCount = 500
         val intervalMs = 1500L
-
         val lanes = listOf(0.33f, 0.5f, 0.66f)
 
-        val startTimestamp = System.currentTimeMillis()
+        val seed = gameId.hashCode().toLong()
+        val random = Random(seed)
 
         return List(obstacleCount) { index ->
             ObstacleModel(
-                timestamp = startTimestamp + index * intervalMs,
-                x = lanes.random()
+                timestamp = startAt + index * intervalMs,
+                x = lanes[random.nextInt(lanes.size)]
             )
         }
     }
+
 
     fun getGame(gameId: String): GameModel? = gameRepository.findById(gameId)
 
