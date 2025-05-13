@@ -153,7 +153,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                             isOpponentGameOver.value = true
                         }
 
-                        delay(500L)
+                        delay(100)
                     }
                 }
             }
