@@ -62,8 +62,12 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
             val offsetFix = 100f
             val streetLeft = screenWidth * 1f / 6f - offsetFix
             val streetRight = screenWidth * 5f / 6f - carWidth - offsetFix
+            val centerX = (streetLeft + streetRight) / 2f
+            val lowerY = screenHeight * 3f / 4f
 
             LaunchedEffect(Unit) {
+                carState.value = CarState(carX = centerX, carY = lowerY, angle = 0f)
+
                 val session = AllClients.sessionClient.getSession(gameId)
                 startAt = session?.startAt ?: 0L
                 val countdownStartAt = startAt - 3000L
@@ -77,9 +81,6 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 countdown = null
 
                 isStarted = true
-                val centerX = (streetLeft + streetRight) / 2f
-                val lowerY = screenHeight * 3f / 4f
-                carState.value = CarState(carX = centerX, carY = lowerY, angle = 0f)
 
                 gameStartDelay = SystemClock.elapsedRealtime() - gameStartTime
                 AllClients.logClient.logEvent(gameId, username, "game_start", gameStartDelay)
@@ -90,9 +91,9 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 } ?: emptyList()
             }
 
-            if (isStarted && !isGameOver.value) {
+            if (isStarted) {
+                // Hindernisse vom Server synchronisiert anzeigen
                 LaunchedEffect(allServerObstacles, startAt) {
-                    val spawnStartTime = System.currentTimeMillis()
                     for (obstacle in allServerObstacles.sortedBy { it.timestamp }) {
                         val delayMs = obstacle.timestamp - startAt
                         val elapsed = System.currentTimeMillis() - startAt
@@ -102,8 +103,9 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                     }
                 }
 
+                // Spiel-Loop: Hindernisse bewegen, Score erhöhen
                 LaunchedEffect(Unit) {
-                    while (true) {
+                    while (!isGameOver.value) {
                         val iterator = obstacles.iterator()
                         while (iterator.hasNext()) {
                             val obstacle = iterator.next()
@@ -114,7 +116,11 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                             if (obstacle.y > screenHeight) {
                                 iterator.remove()
                                 val start = SystemClock.elapsedRealtime()
-                                val success = AllClients.gameClient.incrementScore(gameId, username, System.currentTimeMillis())
+                                val success = AllClients.gameClient.incrementScore(
+                                    gameId,
+                                    username,
+                                    System.currentTimeMillis()
+                                )
                                 val end = SystemClock.elapsedRealtime()
                                 if (success) {
                                     AllClients.logClient.logEvent(gameId, username, "score_updated", end - start)
@@ -125,8 +131,9 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                     }
                 }
 
-                LaunchedEffect(gameId, isGameOver.value) {
-                    while (!isGameOver.value && !isOpponentGameOver.value) {
+                // Gegnerdaten regelmäßig abfragen
+                LaunchedEffect(gameId) {
+                    while (true) {
                         val pollStart = SystemClock.elapsedRealtime()
                         val game = AllClients.gameClient.getGame(gameId)
                         val pollEnd = SystemClock.elapsedRealtime()
@@ -164,18 +171,33 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
             }
 
             if (countdown != null) {
-                Text("Start in $countdown", fontSize = 32.sp, fontWeight = FontWeight.Bold,
-                    modifier = Modifier.align(Alignment.Center).background(Color(0x99000000)).padding(16.dp),
-                    color = Color.White)
+                Text(
+                    "Start in $countdown",
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .background(Color(0x99000000))
+                        .padding(16.dp),
+                    color = Color.White
+                )
             }
 
-            Text("Score: $playerScore", fontSize = 28.sp, fontWeight = FontWeight.Bold,
-                modifier = Modifier.align(Alignment.TopEnd).padding(16.dp), color = Color.White)
+            Text(
+                "Score: $playerScore",
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.TopEnd).padding(16.dp),
+                color = Color.White
+            )
 
-            Text("Gegner: ${opponentScore.value}" + if (isOpponentGameOver.value) " ❌" else "",
-                fontSize = 20.sp, fontWeight = FontWeight.Bold,
+            Text(
+                "Gegner: ${opponentScore.value}" + if (isOpponentGameOver.value) " ❌" else "",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
                 modifier = Modifier.align(Alignment.TopStart).padding(16.dp),
-                color = if (isOpponentGameOver.value) Color.Red else Color.Yellow)
+                color = if (isOpponentGameOver.value) Color.Red else Color.Yellow
+            )
 
             if (isStarted && !isGameOver.value) {
                 Row(
