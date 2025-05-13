@@ -51,6 +51,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
     var isStarted by remember { mutableStateOf(false) }
     var countdown by remember { mutableStateOf<Int?>(null) }
     var allServerObstacles by remember { mutableStateOf<List<Obstacle>>(emptyList()) }
+    var startAt by remember { mutableStateOf(0L) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -64,7 +65,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
 
             LaunchedEffect(Unit) {
                 val session = AllClients.sessionClient.getSession(gameId)
-                val startAt = session?.startAt ?: 0L
+                startAt = session?.startAt ?: 0L
                 val countdownStartAt = startAt - 3000L
                 val delayUntilCountdown = countdownStartAt - System.currentTimeMillis()
                 if (delayUntilCountdown > 0) delay(delayUntilCountdown)
@@ -73,9 +74,8 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                     countdown = i
                     delay(1000L)
                 }
-                countdown = null // Countdown ausblenden
+                countdown = null
 
-                // Spielstart
                 isStarted = true
                 val centerX = (streetLeft + streetRight) / 2f
                 val lowerY = screenHeight * 3f / 4f
@@ -91,10 +91,13 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
             }
 
             if (isStarted && !isGameOver.value) {
-                LaunchedEffect(allServerObstacles) {
+                LaunchedEffect(allServerObstacles, startAt) {
+                    val spawnStartTime = System.currentTimeMillis()
                     for (obstacle in allServerObstacles.sortedBy { it.timestamp }) {
-                        val delayTime = obstacle.timestamp - System.currentTimeMillis()
-                        if (delayTime > 0) delay(delayTime)
+                        val delayMs = obstacle.timestamp - startAt
+                        val elapsed = System.currentTimeMillis() - startAt
+                        val remaining = delayMs - elapsed
+                        if (remaining > 0) delay(remaining)
                         obstacles.add(obstacle.copy(y = -50f))
                     }
                 }
