@@ -1,5 +1,7 @@
 package de.ruoff.consistency.service.session
 
+import de.ruoff.consistency.service.game.events.GameLogEvent
+import de.ruoff.consistency.service.game.events.GameLogProducer
 import de.ruoff.consistency.service.session.events.SessionEvent
 import de.ruoff.consistency.service.session.events.SessionProducer
 import org.springframework.data.redis.core.RedisTemplate
@@ -17,6 +19,7 @@ class SessionService(
 
     @Qualifier("invitationRedisTemplate")
     private val invitationRedisTemplate: RedisTemplate<String, Invitation>,
+    private val gameLogProducer: GameLogProducer,
 
     private val invitationProducer: SessionProducer
 
@@ -103,6 +106,11 @@ class SessionService(
                 .withDescription("Session mit ID $sessionId wurde nicht gefunden.")
                 .asRuntimeException()
 
+        if (session.playerA == null || session.playerB == null)
+            throw Status.FAILED_PRECONDITION
+                .withDescription("Beide Spieler müssen gesetzt sein.")
+                .asRuntimeException()
+
         if (session.playerA != username && session.playerB != username)
             throw Status.PERMISSION_DENIED
                 .withDescription("Nur Spieler A oder B dürfen die Session starten.")
@@ -113,15 +121,34 @@ class SessionService(
                 .withDescription("Session ist nicht im Status ACTIVE (aktuell: ${session.status}).")
                 .asRuntimeException()
 
-        if (session.playerA == null || session.playerB == null)
-            throw Status.FAILED_PRECONDITION
-                .withDescription("Beide Spieler müssen gesetzt sein.")
-                .asRuntimeException()
+        // Setze synchronen Startzeitpunkt
+        val now = System.currentTimeMillis()
+        val countdownBufferMs = 5000L
+        session.startAt = now + countdownBufferMs
 
         session.status = SessionStatus.WAITING_FOR_START
         sessionRedisTemplate.opsForValue().set(key, session)
+
+        gameLogProducer.send(
+            GameLogEvent(
+                gameId = session.sessionId,
+                username = session.playerA,
+                eventType = "game_start",
+                originTimestamp = now
+            )
+        )
+        gameLogProducer.send(
+            GameLogEvent(
+                gameId = session.sessionId,
+                username = session.playerB!!,
+                eventType = "game_start",
+                originTimestamp = now
+            )
+        )
+
         return true
     }
+
 
     private val invitationObservers = ConcurrentHashMap<String, MutableList<StreamObserver<Session.Invitation>>>()
 

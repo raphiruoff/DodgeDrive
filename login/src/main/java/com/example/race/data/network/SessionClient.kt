@@ -73,13 +73,15 @@ class SessionClient : BaseClient() {
         return stub.acceptInvitation(request).success
     }
 
-    fun startGame(sessionId: String, username: String): Boolean {
+    fun startGame(sessionId: String, username: String): Pair<Boolean, Long> {
         val request = Session.StartGameRequest.newBuilder()
             .setSessionId(sessionId)
             .setUsername(username)
             .build()
-        return stub.startGame(request).success
+        val response = stub.startGame(request)
+        return Pair(response.success, response.startAt)
     }
+
 
     fun streamInvitations(
         username: String,

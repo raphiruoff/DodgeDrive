@@ -32,11 +32,13 @@ class GameService(
         }
 
         val gameId = UUID.randomUUID().toString()
+        val obstacles = generateObstacles()
         val game = GameModel(
             gameId = gameId,
             sessionId = sessionId,
             playerA = playerA,
-            playerB = playerB
+            playerB = playerB,
+            obstacles = obstacles.toMutableList()
         )
         gameRepository.save(game)
 
@@ -52,6 +54,23 @@ class GameService(
         }
 
         return game
+    }
+
+
+    private fun generateObstacles(): List<ObstacleModel> {
+        val obstacleCount = 500
+        val intervalMs = 1500L
+
+        val lanes = listOf(0.33f, 0.5f, 0.66f)
+
+        val startTimestamp = System.currentTimeMillis()
+
+        return List(obstacleCount) { index ->
+            ObstacleModel(
+                timestamp = startTimestamp + index * intervalMs,
+                x = lanes.random()
+            )
+        }
     }
 
     fun getGame(gameId: String): GameModel? = gameRepository.findById(gameId)
@@ -97,4 +116,19 @@ class GameService(
     fun deleteGame(gameId: String): Boolean = gameRepository.delete(gameId)
 
     fun getGameBySession(sessionId: String): GameModel? = gameRepository.findBySessionId(sessionId)
+
+    fun incrementScore(gameId: String, player: String, originTimestamp: Long?): Boolean {
+        val game = gameRepository.findById(gameId) ?: return false
+        val newScore = (game.scores[player] ?: 0) + 1
+        game.scores[player] = newScore
+        gameRepository.save(game)
+
+        originTimestamp?.let {
+            gameLogProducer.send(
+                GameLogEvent(gameId, player, "score_updated", it)
+            )
+        }
+
+        return true
+    }
 }

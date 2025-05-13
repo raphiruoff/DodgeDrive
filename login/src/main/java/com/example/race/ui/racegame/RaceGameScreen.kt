@@ -1,7 +1,6 @@
 package com.example.race.ui.racegame
 
 import android.os.SystemClock
-import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -40,7 +39,6 @@ fun checkCollision(car: CarState, obstacle: Obstacle): Boolean {
 fun RaceGameScreen(navController: NavHostController, gameId: String, username: String) {
     val carState = remember { mutableStateOf(CarState()) }
     val obstacles = remember { mutableStateListOf<Obstacle>() }
-    val score = remember { mutableStateOf(0) }
     val opponentScore = remember { mutableStateOf(0) }
     val isGameOver = remember { mutableStateOf(false) }
     val isOpponentGameOver = remember { mutableStateOf(false) }
@@ -48,6 +46,11 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
     val gameStartTime = remember { SystemClock.elapsedRealtime() }
     var gameStartDelay by remember { mutableStateOf(0L) }
     var opponentUpdateDelay by remember { mutableStateOf(0L) }
+    var playerScore by remember { mutableStateOf(0) }
+
+    var isStarted by remember { mutableStateOf(false) }
+    var countdown by remember { mutableStateOf<Int?>(null) }
+    var allServerObstacles by remember { mutableStateOf<List<Obstacle>>(emptyList()) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -60,25 +63,39 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
             val streetRight = screenWidth * 5f / 6f - carWidth - offsetFix
 
             LaunchedEffect(Unit) {
+                val session = AllClients.sessionClient.getSession(gameId)
+                val startAt = session?.startAt ?: 0L
+                val countdownStartAt = startAt - 3000L
+                val delayUntilCountdown = countdownStartAt - System.currentTimeMillis()
+                if (delayUntilCountdown > 0) delay(delayUntilCountdown)
+
+                for (i in 3 downTo 1) {
+                    countdown = i
+                    delay(1000L)
+                }
+                countdown = null // Countdown ausblenden
+
+                // Spielstart
+                isStarted = true
                 val centerX = (streetLeft + streetRight) / 2f
                 val lowerY = screenHeight * 3f / 4f
                 carState.value = CarState(carX = centerX, carY = lowerY, angle = 0f)
 
                 gameStartDelay = SystemClock.elapsedRealtime() - gameStartTime
-                Log.d("RaceGameScreen", "Spiel gestartet nach $gameStartDelay ms")
                 AllClients.logClient.logEvent(gameId, username, "game_start", gameStartDelay)
+
+                val game = AllClients.gameClient.getGame(gameId)
+                allServerObstacles = game?.obstaclesList?.map {
+                    Obstacle(x = it.x * screenWidth, y = -50f, timestamp = it.timestamp)
+                } ?: emptyList()
             }
 
-            if (!isGameOver.value) {
-                LaunchedEffect(Unit) {
-                    while (true) {
-                        val laneX = listOf(
-                            screenWidth * 2f / 6f,
-                            screenWidth * 3f / 6f,
-                            screenWidth * 4f / 6f
-                        ).random()
-                        obstacles.add(Obstacle(x = laneX, y = -50f))
-                        delay(2500L)
+            if (isStarted && !isGameOver.value) {
+                LaunchedEffect(allServerObstacles) {
+                    for (obstacle in allServerObstacles.sortedBy { it.timestamp }) {
+                        val delayTime = obstacle.timestamp - System.currentTimeMillis()
+                        if (delayTime > 0) delay(delayTime)
+                        obstacles.add(obstacle.copy(y = -50f))
                     }
                 }
 
@@ -93,29 +110,24 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                             }
                             if (obstacle.y > screenHeight) {
                                 iterator.remove()
-                                score.value += 1
+                                val start = SystemClock.elapsedRealtime()
+                                val success = AllClients.gameClient.incrementScore(gameId, username, System.currentTimeMillis())
+                                val end = SystemClock.elapsedRealtime()
+                                if (success) {
+                                    AllClients.logClient.logEvent(gameId, username, "score_updated", end - start)
+                                }
                             }
                         }
                         delay(20L)
                     }
                 }
 
-                LaunchedEffect(score.value) {
-                    AllClients.gameClient.updateScore(gameId, username, score.value)
-                }
-
                 LaunchedEffect(gameId, isGameOver.value) {
                     while (!isGameOver.value && !isOpponentGameOver.value) {
                         val pollStart = SystemClock.elapsedRealtime()
-                        val game = try {
-                            AllClients.gameClient.getGame(gameId)
-                        } catch (e: Exception) {
-                            Log.e("RaceGameScreen", "❌ Fehler beim Laden des Spiels", e)
-                            null
-                        }
+                        val game = AllClients.gameClient.getGame(gameId)
                         val pollEnd = SystemClock.elapsedRealtime()
                         opponentUpdateDelay = pollEnd - pollStart
-                        Log.d("RaceGameScreen", "🔁 Gegnerstand geladen in ${opponentUpdateDelay}ms")
                         AllClients.logClient.logEvent(gameId, username, "opponent_update", opponentUpdateDelay)
 
                         val opponent = when (username) {
@@ -125,12 +137,13 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                         }
 
                         opponentScore.value = game?.scoresMap?.get(opponent) ?: 0
+                        playerScore = game?.scoresMap?.get(username) ?: 0
 
                         if (game?.status == "FINISHED" && game.winner != username) {
                             isOpponentGameOver.value = true
                         }
 
-                        delay(1000L)
+                        delay(500L)
                     }
                 }
             }
@@ -147,34 +160,23 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 )
             }
 
-            Text(
-                text = "Score: ${score.value}",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(16.dp),
-                color = Color.White
-            )
+            if (countdown != null) {
+                Text("Start in $countdown", fontSize = 32.sp, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.align(Alignment.Center).background(Color(0x99000000)).padding(16.dp),
+                    color = Color.White)
+            }
 
-            Text(
-                text = buildString {
-                    append("Gegner: ${opponentScore.value}")
-                    if (isOpponentGameOver.value) append(" ❌")
-                },
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(16.dp),
-                color = if (isOpponentGameOver.value) Color.Red else Color.Yellow
-            )
+            Text("Score: $playerScore", fontSize = 28.sp, fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.TopEnd).padding(16.dp), color = Color.White)
 
-            if (!isGameOver.value) {
+            Text("Gegner: ${opponentScore.value}" + if (isOpponentGameOver.value) " ❌" else "",
+                fontSize = 20.sp, fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.TopStart).padding(16.dp),
+                color = if (isOpponentGameOver.value) Color.Red else Color.Yellow)
+
+            if (isStarted && !isGameOver.value) {
                 Row(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 24.dp),
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
                     horizontalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
                     Button(onClick = {
@@ -198,22 +200,19 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 }
 
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color(0x99000000)),
+                    modifier = Modifier.fillMaxSize().background(Color(0x99000000)),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text("💥 Game Over", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Score: ${score.value}", fontSize = 24.sp, color = Color.White)
+                    Text("Score: $playerScore", fontSize = 24.sp, color = Color.White)
                     Spacer(modifier = Modifier.height(24.dp))
-
                     Button(onClick = {
                         obstacles.clear()
-                        score.value = 0
                         isGameOver.value = false
                         isOpponentGameOver.value = false
+                        isStarted = true
                     }) { Text("🔄 Neustart") }
 
                     Button(onClick = {

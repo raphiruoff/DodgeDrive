@@ -33,10 +33,11 @@ class SessionController(
         }
     }
 
-
     override fun joinSession(request: Session.JoinSessionRequest, responseObserver: StreamObserver<Session.JoinSessionResponse>) {
         val session = sessionService.joinSession(request.sessionId, request.playerB)
-        val response = Session.JoinSessionResponse.newBuilder().setSuccess(session?.playerB == request.playerB).build()
+        val response = Session.JoinSessionResponse.newBuilder()
+            .setSuccess(session?.playerB == request.playerB)
+            .build()
         responseObserver.onNext(response)
         responseObserver.onCompleted()
     }
@@ -48,6 +49,7 @@ class SessionController(
             .setPlayerA(session?.playerA ?: "")
             .setPlayerB(session?.playerB ?: "")
             .setStatus(session?.status?.name ?: "")
+            .setStartAt(session?.startAt ?: 0L)
             .build()
         responseObserver.onNext(response)
         responseObserver.onCompleted()
@@ -67,6 +69,7 @@ class SessionController(
             .setPlayerA(session?.playerA ?: "")
             .setPlayerB(session?.playerB ?: "")
             .setStatus(session?.status?.name ?: "")
+            .setStartAt(session?.startAt ?: 0L)
             .build()
         responseObserver.onNext(response)
         responseObserver.onCompleted()
@@ -109,7 +112,6 @@ class SessionController(
         }
     }
 
-
     override fun acceptInvitation(request: Session.AcceptInvitationRequest, responseObserver: StreamObserver<Session.AcceptInvitationResponse>) {
         val success = sessionService.acceptInvitation(request.sessionId, request.username)
         val response = Session.AcceptInvitationResponse.newBuilder().setSuccess(success).build()
@@ -117,20 +119,28 @@ class SessionController(
         responseObserver.onCompleted()
     }
 
-    override fun startGame(request: Session.StartGameRequest, responseObserver: StreamObserver<Session.StartGameResponse>) {
+    override fun startGame(
+        request: Session.StartGameRequest,
+        responseObserver: StreamObserver<Session.StartGameResponse>
+    ) {
         val success = sessionService.startGame(request.sessionId, request.username)
-        val response = Session.StartGameResponse.newBuilder().setSuccess(success).build()
+        val session = sessionService.getSession(request.sessionId)
+
+        val response = Session.StartGameResponse.newBuilder()
+            .setSuccess(success)
+            .setStartAt(session?.startAt ?: 0L)
+            .build()
+
         responseObserver.onNext(response)
         responseObserver.onCompleted()
     }
+
 
     override fun streamInvitations(
         request: Session.PlayerRequest,
         responseObserver: StreamObserver<Session.Invitation>
     ) {
-        println("📡 gRPC-Stream aktiviert für: ${request.player}")
+        println(" gRPC-Stream aktiviert für: ${request.player}")
         sessionService.registerInvitationStream(request.player, responseObserver)
     }
-
-
 }

@@ -40,14 +40,12 @@ fun SessionScreen(
     var infoMessage by remember { mutableStateOf("") }
     var invitations by remember { mutableStateOf<List<Session.Invitation>>(emptyList()) }
 
-    var countdown by remember { mutableStateOf(0) }
-    var isCountingDown by remember { mutableStateOf(false) }
     val streamRegistered = remember { mutableStateOf(false) }
 
     fun refreshInvitations() {
         coroutineScope.launch {
-            if (username != null) {
-                invitations = withContext(Dispatchers.IO) { sessionClient.getInvitations(username) }
+            username?.let {
+                invitations = withContext(Dispatchers.IO) { sessionClient.getInvitations(it) }
             }
         }
     }
@@ -76,14 +74,16 @@ fun SessionScreen(
     }
 
     LaunchedEffect(sessionId) {
-        if (sessionId != null && username != null) {
+        val safeUsername = username
+        val safeSessionId = sessionId
+        if (safeSessionId != null && safeUsername != null) {
             while (true) {
-                delay(2000L)
-                val session = withContext(Dispatchers.IO) { sessionClient.getSession(sessionId!!) }
+                delay(500L)
+                val session = withContext(Dispatchers.IO) { sessionClient.getSession(safeSessionId) }
                 if (session != null) {
                     sessionStatus = session.status
                     if (session.status == "ACTIVE" && session.playerB != null) {
-                        val partner = if (session.playerA == username) session.playerB else session.playerA
+                        val partner = if (session.playerA == safeUsername) session.playerB else session.playerA
                         sessionPartner = partner
                         if (partner != null && !acceptedFriends.contains(partner)) {
                             acceptedFriends.add(partner)
@@ -91,35 +91,16 @@ fun SessionScreen(
                         invitedFriends.remove(partner)
                     }
 
-                    if (session.status == "WAITING_FOR_START" && !isCountingDown) {
-                        isCountingDown = true
-                        coroutineScope.launch {
-                            for (i in 3 downTo 1) {
-                                countdown = i
-                                delay(1000L)
-                            }
-                            countdown = 0
+                    if (session.status == "WAITING_FOR_START") {
+                        val gameId = withContext(Dispatchers.IO) {
+                            GameClient().getGameBySession(safeSessionId)?.gameId
+                                ?: GameClient().createGame(safeSessionId, safeUsername, sessionPartner ?: "")
+                        }
 
-                            val safeSessionId = sessionId ?: return@launch
-                            val safeUsername = username
-                            val safePartner = sessionPartner
-
-                            if (safePartner != null) {
-                                val gameId = withContext(Dispatchers.IO) {
-                                    GameClient().getGameBySession(safeSessionId)?.gameId
-                                        ?: GameClient().createGame(safeSessionId, safeUsername, safePartner)
-                                }
-
-                                if (!gameId.isNullOrBlank()) {
-                                    onNavigateToRaceGame(gameId, username)
-                                } else {
-                                    infoMessage = "❌ Spiel konnte nicht erstellt werden"
-                                    isCountingDown = false
-                                }
-                            } else {
-                                infoMessage = "❌ Kein gültiger Mitspieler"
-                                isCountingDown = false
-                            }
+                        if (!gameId.isNullOrBlank()) {
+                            onNavigateToRaceGame(gameId, safeUsername)
+                        } else {
+                            infoMessage = "❌ Spiel konnte nicht erstellt werden"
                         }
                         break
                     }
@@ -131,9 +112,11 @@ fun SessionScreen(
     DisposableEffect(Unit) {
         onDispose {
             coroutineScope.launch {
-                if (sessionId != null && username != null) {
+                val safeUsername = username
+                val safeSessionId = sessionId
+                if (safeSessionId != null && safeUsername != null) {
                     try {
-                        sessionClient.leaveSession(sessionId!!, username)
+                        sessionClient.leaveSession(safeSessionId, safeUsername)
                     } catch (_: Exception) {}
                 }
             }
@@ -141,7 +124,9 @@ fun SessionScreen(
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text("🎯 Session erstellen", style = MaterialTheme.typography.headlineMedium)
@@ -150,7 +135,9 @@ fun SessionScreen(
             items(friends) { friend ->
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Row(
-                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -161,17 +148,19 @@ fun SessionScreen(
                             else -> Button(
                                 onClick = {
                                     coroutineScope.launch {
-                                        if (username == null) return@launch
-                                        if (sessionId == null) {
-                                            sessionId = withContext(Dispatchers.IO) {
-                                                sessionClient.createSession(username)
+                                        val safeUsername = username
+                                        if (safeUsername != null) {
+                                            if (sessionId == null) {
+                                                sessionId = withContext(Dispatchers.IO) {
+                                                    sessionClient.createSession(safeUsername)
+                                                }
                                             }
+                                            invitedFriends.add(friend)
+                                            val success = withContext(Dispatchers.IO) {
+                                                sessionClient.invitePlayer(safeUsername, friend)
+                                            }
+                                            if (!success) invitedFriends.remove(friend)
                                         }
-                                        invitedFriends.add(friend)
-                                        val success = withContext(Dispatchers.IO) {
-                                            sessionClient.invitePlayer(username, friend)
-                                        }
-                                        if (!success) invitedFriends.remove(friend)
                                     }
                                 },
                                 enabled = !isLoading
@@ -188,26 +177,30 @@ fun SessionScreen(
                 items(invitations) { invitation ->
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Row(
-                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text("Von ${invitation.requester}")
                             Button(onClick = {
                                 coroutineScope.launch {
-                                    if (username == null) return@launch
-                                    val accepted = withContext(Dispatchers.IO) {
-                                        sessionClient.acceptInvitation(invitation.sessionId, username)
-                                    }
-                                    if (accepted) {
-                                        sessionId = invitation.sessionId
-                                        invitations = emptyList()
-                                        val session = withContext(Dispatchers.IO) {
-                                            sessionClient.getSession(invitation.sessionId)
+                                    val safeUsername = username
+                                    if (safeUsername != null) {
+                                        val accepted = withContext(Dispatchers.IO) {
+                                            sessionClient.acceptInvitation(invitation.sessionId, safeUsername)
                                         }
-                                        session?.let {
-                                            sessionPartner = if (it.playerA == username) it.playerB else it.playerA
-                                            sessionStatus = it.status
+                                        if (accepted) {
+                                            sessionId = invitation.sessionId
+                                            invitations = emptyList()
+                                            val session = withContext(Dispatchers.IO) {
+                                                sessionClient.getSession(invitation.sessionId)
+                                            }
+                                            session?.let {
+                                                sessionPartner = if (it.playerA == safeUsername) it.playerB else it.playerA
+                                                sessionStatus = it.status
+                                            }
                                         }
                                     }
                                 }
@@ -221,11 +214,19 @@ fun SessionScreen(
         }
 
         sessionPartner?.let {
-            Text("✅ Du bist in einer Session mit: $it", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            Text(
+                "✅ Du bist in einer Session mit: $it",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
 
         if (infoMessage.isNotBlank()) {
-            Text(text = infoMessage, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp))
+            Text(
+                text = infoMessage,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(top = 8.dp)
+            )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -233,32 +234,28 @@ fun SessionScreen(
         Button(
             onClick = {
                 coroutineScope.launch {
-                    if (sessionId != null && username != null && sessionStatus == "ACTIVE") {
-                        val started = withContext(Dispatchers.IO) {
-                            sessionClient.startGame(sessionId!!, username)
+                    val safeSessionId = sessionId
+                    val safeUsername = username
+                    if (safeSessionId != null && safeUsername != null && sessionStatus == "ACTIVE") {
+                        val (success, _) = withContext(Dispatchers.IO) {
+                            sessionClient.startGame(safeSessionId, safeUsername)
                         }
-                        if (!started) infoMessage = "Spielstart fehlgeschlagen"
-                        else sessionStatus = "WAITING_FOR_START"
+                        if (!success) {
+                            infoMessage = "Spielstart fehlgeschlagen"
+                        } else {
+                            sessionStatus = "WAITING_FOR_START"
+                        }
                     }
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            enabled = sessionPartner != null && !isCountingDown && sessionStatus == "ACTIVE"
+            enabled = sessionPartner != null && sessionStatus == "ACTIVE"
         ) {
             Text("🚗 Spiel starten")
         }
 
         Button(onClick = onNavigateBack, modifier = Modifier.fillMaxWidth()) {
             Text("⬅️ Zurück")
-        }
-
-        if (isCountingDown) {
-            Text(
-                text = "$countdown",
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
         }
     }
 }

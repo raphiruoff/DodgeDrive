@@ -37,17 +37,17 @@ class GameClient : BaseClient() {
         }
     }
 
-    fun updateScore(gameId: String, player: String, score: Int): Boolean {
+    fun incrementScore(gameId: String, player: String, timestamp: Long): Boolean {
         return try {
-            val request = UpdateScoreRequest.newBuilder()
+            val request = IncrementScoreRequest.newBuilder()
                 .setGameId(gameId)
                 .setPlayer(player)
-                .setScore(score)
+                .setOriginTimestamp(timestamp)
                 .build()
-            val response = stub.updateScore(request)
+            val response = stub.incrementScore(request)
             response.success
         } catch (e: Exception) {
-            Log.e("GameClient", "❌ updateScore failed", e)
+            Log.e("GameClient", "❌ incrementScore failed", e)
             false
         }
     }
@@ -71,14 +71,10 @@ class GameClient : BaseClient() {
             val request = GetGameBySessionRequest.newBuilder()
                 .setSessionId(sessionId)
                 .build()
-            val response = stub.getGameBySession(request)
-            response
+            stub.getGameBySession(request)
         } catch (e: Exception) {
             Log.e("GameClient", "❌ getGameBySession failed", e)
             null
         }
     }
-
-
-
 }

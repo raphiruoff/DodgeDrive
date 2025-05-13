@@ -57,12 +57,21 @@ class GameController(
                 .setStatus(it.status.name)
                 .setWinner(it.winner ?: "")
                 .putAllScores(it.scores)
+                .addAllObstacles(
+                    it.obstacles.map { obstacle ->
+                        Obstacle.newBuilder()
+                            .setTimestamp(obstacle.timestamp)
+                            .setX(obstacle.x)
+                            .build()
+                    }
+                )
                 .build()
         } ?: GetGameResponse.getDefaultInstance()
 
         responseObserver.onNext(response)
         responseObserver.onCompleted()
     }
+
 
     override fun getGameBySession(
         request: GetGameBySessionRequest,
@@ -127,4 +136,19 @@ class GameController(
         responseObserver.onNext(response)
         responseObserver.onCompleted()
     }
+
+    override fun incrementScore(
+        request: IncrementScoreRequest,
+        responseObserver: StreamObserver<IncrementScoreResponse>
+    ) {
+        val success = gameService.incrementScore(
+            gameId = request.gameId,
+            player = request.player,
+            originTimestamp = request.originTimestamp
+        )
+        val response = IncrementScoreResponse.newBuilder().setSuccess(success).build()
+        responseObserver.onNext(response)
+        responseObserver.onCompleted()
+    }
+
 }

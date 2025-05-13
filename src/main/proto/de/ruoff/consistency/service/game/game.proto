@@ -9,6 +9,7 @@ service GameService {
     rpc GetGameBySession(GetGameBySessionRequest) returns (GetGameResponse);
     rpc UpdateScore(UpdateScoreRequest) returns (UpdateScoreResponse);
     rpc FinishGame(FinishGameRequest) returns (FinishGameResponse);
+    rpc IncrementScore(IncrementScoreRequest) returns (IncrementScoreResponse);
 }
 
 message CreateGameRequest {
@@ -30,6 +31,11 @@ message GetGameBySessionRequest {
     string sessionId = 1;
 }
 
+message Obstacle {
+    int64 timestamp = 1;
+    float x = 2;
+}
+
 message GetGameResponse {
     string gameId = 1;
     string sessionId = 2;
@@ -40,7 +46,9 @@ message GetGameResponse {
     map<string, int32> scores = 7;
     string startTime = 8;
     string endTime = 9;
+    repeated Obstacle obstacles = 10;
 }
+
 
 message UpdateScoreRequest {
     string gameId = 1;
@@ -61,3 +69,14 @@ message FinishGameRequest {
 message FinishGameResponse {
     bool success = 1;
 }
+
+message IncrementScoreRequest {
+    string gameId = 1;
+    string player = 2;
+    int64 originTimestamp = 3;
+}
+
+message IncrementScoreResponse {
+    bool success = 1;
+}
+

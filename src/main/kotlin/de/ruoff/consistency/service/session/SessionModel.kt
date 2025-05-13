@@ -1,4 +1,5 @@
 package de.ruoff.consistency.service.session
+
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonProperty
@@ -15,5 +16,6 @@ data class GameSession @JsonCreator constructor(
     @JsonProperty("sessionId") val sessionId: String,
     @JsonProperty("playerA") val playerA: String,
     @JsonProperty("playerB") var playerB: String? = null,
-    @JsonProperty("status") var status: SessionStatus = SessionStatus.WAITING_FOR_PLAYER
+    @JsonProperty("status") var status: SessionStatus = SessionStatus.WAITING_FOR_PLAYER,
+    @JsonProperty("startAt") var startAt: Long? = null
 )
