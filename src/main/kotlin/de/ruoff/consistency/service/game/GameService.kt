@@ -20,15 +20,15 @@ class GameService(
         playerB: String,
         originTimestamp: Long?
     ): GameModel {
-        println("🎮 Creating game for session $sessionId with players A=$playerA, B=$playerB")
+        println("[GameService] Request to create game with sessionId=$sessionId, players=[$playerA, $playerB]")
 
         gameRepository.findBySessionId(sessionId)?.let {
-            println("⚠️ Game already exists for sessionId=$sessionId → gameId=${it.gameId}")
+            println("[GameService] Game already exists for sessionId=$sessionId → gameId=${it.gameId}")
             return it
         }
 
-        if (playerA == playerB) {
-            throw IllegalArgumentException("Ein Spieler kann nicht gegen sich selbst spielen.")
+        require(playerA != playerB) {
+            "Ein Spieler kann nicht gegen sich selbst spielen."
         }
 
         val gameId = UUID.randomUUID().toString()
@@ -46,6 +46,8 @@ class GameService(
 
         gameRepository.save(game)
 
+        println("[GameService] Neues Spiel erstellt → gameId=$gameId, sessionId=$sessionId, startAt=$startAt")
+
         originTimestamp?.let {
             gameLogProducer.send(
                 GameLogEvent(
@@ -60,12 +62,10 @@ class GameService(
         return game
     }
 
-
     private fun generateObstacles(gameId: String, startAt: Long): List<ObstacleModel> {
         val obstacleCount = 500
-        val intervalMs = 1500L
+        val intervalMs = 3500L
         val lanes = listOf(0.33f, 0.5f, 0.66f)
-
         val seed = gameId.hashCode().toLong()
         val random = Random(seed)
 
@@ -77,8 +77,14 @@ class GameService(
         }
     }
 
+    fun getGame(gameId: String): GameModel? =
+        gameRepository.findById(gameId)
 
-    fun getGame(gameId: String): GameModel? = gameRepository.findById(gameId)
+    fun getGameBySession(sessionId: String): GameModel? =
+        gameRepository.findBySessionId(sessionId)
+
+    fun deleteGame(gameId: String): Boolean =
+        gameRepository.delete(gameId)
 
     fun updateScore(
         gameId: String,
@@ -102,27 +108,11 @@ class GameService(
         return success
     }
 
-    fun finishGame(gameId: String, winner: String): Boolean {
-        val game = gameRepository.findById(gameId) ?: return false
-        val success = gameRepository.finishGame(gameId, winner)
-        if (!success) return false
-
-        val score = game.scores[winner] ?: return true
-
-        val event = ScoreEvent(
-            username = winner,
-            score = score
-        )
-        scoreProducer.send(event)
-
-        return true
-    }
-
-    fun deleteGame(gameId: String): Boolean = gameRepository.delete(gameId)
-
-    fun getGameBySession(sessionId: String): GameModel? = gameRepository.findBySessionId(sessionId)
-
-    fun incrementScore(gameId: String, player: String, originTimestamp: Long?): Boolean {
+    fun incrementScore(
+        gameId: String,
+        player: String,
+        originTimestamp: Long?
+    ): Boolean {
         val game = gameRepository.findById(gameId) ?: return false
         val newScore = (game.scores[player] ?: 0) + 1
         game.scores[player] = newScore
@@ -130,9 +120,31 @@ class GameService(
 
         originTimestamp?.let {
             gameLogProducer.send(
-                GameLogEvent(gameId, player, "score_updated", it)
+                GameLogEvent(
+                    gameId = gameId,
+                    username = player,
+                    eventType = "score_updated",
+                    originTimestamp = it
+                )
             )
         }
+
+        return true
+    }
+
+    fun finishGame(gameId: String, winner: String): Boolean {
+        val game = gameRepository.findById(gameId) ?: return false
+        val success = gameRepository.finishGame(gameId, winner)
+        if (!success) return false
+
+        val score = game.scores[winner] ?: return true
+
+        scoreProducer.send(
+            ScoreEvent(
+                username = winner,
+                score = score
+            )
+        )
 
         return true
     }

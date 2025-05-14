@@ -67,11 +67,16 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
 
             LaunchedEffect(Unit) {
                 carState.value = CarState(carX = centerX, carY = lowerY, angle = 0f)
+                println(" Server statAt: $startAt")
 
                 val session = AllClients.sessionClient.getSession(gameId)
                 startAt = session?.startAt ?: 0L
+                println(" Server startAt: $startAt")
+
                 val countdownStartAt = startAt - 3000L
-                val delayUntilCountdown = countdownStartAt - System.currentTimeMillis()
+                val now = System.currentTimeMillis()
+
+                val delayUntilCountdown = countdownStartAt - now
                 if (delayUntilCountdown > 0) delay(delayUntilCountdown)
 
                 for (i in 3 downTo 1) {
@@ -80,14 +85,22 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 }
                 countdown = null
 
+                val finalWait = startAt - System.currentTimeMillis()
+                if (finalWait > 0) delay(finalWait)
+
+                println("Client $username startet bei ${System.currentTimeMillis()}, erwartet: $startAt, Differenz: ${System.currentTimeMillis() - startAt}")
+
+
                 isStarted = true
 
                 gameStartDelay = SystemClock.elapsedRealtime() - gameStartTime
                 AllClients.logClient.logEvent(gameId, username, "game_start", gameStartDelay)
 
                 val game = AllClients.gameClient.getGame(gameId)
+                println(" Server gameId from getGame: ${game?.gameId}")
                 allServerObstacles = game?.obstaclesList?.map {
                     Obstacle(x = it.x * screenWidth, y = -50f, timestamp = it.timestamp)
+
                 } ?: emptyList()
             }
 
@@ -101,6 +114,8 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                         if (remaining > 0) delay(remaining)
                         obstacles.add(obstacle.copy(y = -50f))
                     }
+                    println("Hindernisse vom Server empfangen: ${allServerObstacles.size}")
+
                 }
 
                 // Spiel-Loop: Hindernisse bewegen, Score erhöhen
