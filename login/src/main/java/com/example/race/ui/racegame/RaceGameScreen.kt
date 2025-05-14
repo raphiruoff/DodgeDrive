@@ -52,6 +52,8 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
     var countdown by remember { mutableStateOf<Int?>(null) }
     var allServerObstacles by remember { mutableStateOf<List<Obstacle>>(emptyList()) }
     var startAt by remember { mutableStateOf(0L) }
+    val renderTick = remember { mutableStateOf(0L) }
+
 
     Column(modifier = Modifier.fillMaxSize()) {
         BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -67,17 +69,19 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
 
             LaunchedEffect(Unit) {
                 carState.value = CarState(carX = centerX, carY = lowerY, angle = 0f)
-                println(" Server statAt: $startAt")
 
                 val session = AllClients.sessionClient.getSession(gameId)
                 startAt = session?.startAt ?: 0L
-                println(" Server startAt: $startAt")
+                println("🕒 Server startAt: $startAt")
 
                 val countdownStartAt = startAt - 3000L
-                val now = System.currentTimeMillis()
+                val countdownStartElapsed = SystemClock.elapsedRealtime() + (countdownStartAt - System.currentTimeMillis())
+                val startAtElapsed = SystemClock.elapsedRealtime() + (startAt - System.currentTimeMillis())
 
-                val delayUntilCountdown = countdownStartAt - now
-                if (delayUntilCountdown > 0) delay(delayUntilCountdown)
+                // Countdown (frame-synchron)
+                while (SystemClock.elapsedRealtime() < countdownStartElapsed) {
+                    delay(1)
+                }
 
                 for (i in 3 downTo 1) {
                     countdown = i
@@ -85,24 +89,23 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 }
                 countdown = null
 
-                val finalWait = startAt - System.currentTimeMillis()
-                if (finalWait > 0) delay(finalWait)
+                // Warten bis Spiel starten darf
+                while (SystemClock.elapsedRealtime() < startAtElapsed) {
+                    delay(1)
+                }
 
                 println("Client $username startet bei ${System.currentTimeMillis()}, erwartet: $startAt, Differenz: ${System.currentTimeMillis() - startAt}")
-
-
                 isStarted = true
 
                 gameStartDelay = SystemClock.elapsedRealtime() - gameStartTime
                 AllClients.logClient.logEvent(gameId, username, "game_start", gameStartDelay)
 
                 val game = AllClients.gameClient.getGame(gameId)
-                println(" Server gameId from getGame: ${game?.gameId}")
                 allServerObstacles = game?.obstaclesList?.map {
                     Obstacle(x = it.x * screenWidth, y = -50f, timestamp = it.timestamp)
-
                 } ?: emptyList()
             }
+
 
             if (isStarted) {
                 // Hindernisse vom Server synchronisiert anzeigen
@@ -119,31 +122,43 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 }
 
                 // Spiel-Loop: Hindernisse bewegen, Score erhöhen
+
                 LaunchedEffect(Unit) {
-                    while (!isGameOver.value) {
-                        val iterator = obstacles.iterator()
-                        while (iterator.hasNext()) {
-                            val obstacle = iterator.next()
-                            obstacle.y += 8f
-                            if (checkCollision(carState.value, obstacle)) {
-                                isGameOver.value = true
-                            }
-                            if (obstacle.y > screenHeight) {
-                                iterator.remove()
-                                val start = SystemClock.elapsedRealtime()
-                                val success = AllClients.gameClient.incrementScore(
-                                    gameId,
-                                    username,
-                                    System.currentTimeMillis()
-                                )
-                                val end = SystemClock.elapsedRealtime()
-                                if (success) {
-                                    AllClients.logClient.logEvent(gameId, username, "score_updated", end - start)
-                                }
+                    while (true) {
+                        renderTick.value = System.currentTimeMillis()
+                        delay(16L) // 60 FPS
+                    }
+                }
+                LaunchedEffect(renderTick.value) {
+                    if (isGameOver.value) return@LaunchedEffect
+
+                    val iterator = obstacles.iterator()
+                    val toRemove = mutableListOf<Obstacle>()
+
+                    while (iterator.hasNext()) {
+                        val obstacle = iterator.next()
+                        obstacle.y += 8f
+
+                        if (checkCollision(carState.value, obstacle)) {
+                            isGameOver.value = true
+                        }
+
+                        if (obstacle.y > screenHeight) {
+                            toRemove.add(obstacle)
+                            val start = SystemClock.elapsedRealtime()
+                            val success = AllClients.gameClient.incrementScore(
+                                gameId,
+                                username,
+                                System.currentTimeMillis()
+                            )
+                            val end = SystemClock.elapsedRealtime()
+                            if (success) {
+                                AllClients.logClient.logEvent(gameId, username, "score_updated", end - start)
                             }
                         }
-                        delay(20L)
                     }
+
+                    obstacles.removeAll(toRemove)
                 }
 
                 // Gegnerdaten regelmäßig abfragen
