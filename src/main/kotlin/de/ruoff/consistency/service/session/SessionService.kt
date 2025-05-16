@@ -11,6 +11,7 @@ import io.grpc.Status
 import io.grpc.stub.StreamObserver
 import org.springframework.beans.factory.annotation.Qualifier
 import java.util.concurrent.ConcurrentHashMap
+import java.time.Duration
 
 @Service
 class SessionService(
@@ -35,19 +36,29 @@ class SessionService(
         return session
     }
 
-    fun joinSession(sessionId: String, playerB: String): GameSession? {
+    fun joinSession(sessionId: String, playerB: String): GameSession {
         val key = "session:$sessionId"
-        val session = sessionRedisTemplate.opsForValue().get(key) as? GameSession
-            ?: throw Status.NOT_FOUND.withDescription("Session nicht gefunden").asRuntimeException()
 
-        if (session.status != SessionStatus.WAITING_FOR_PLAYER)
-            throw Status.FAILED_PRECONDITION.withDescription("Session ist nicht offen").asRuntimeException()
+        val session = sessionRedisTemplate.opsForValue().get(key) as? GameSession
+            ?: throw Status.NOT_FOUND
+                .withDescription("Session nicht gefunden")
+                .asRuntimeException()
+
+        if (session.status != SessionStatus.WAITING_FOR_PLAYER) {
+            throw Status.FAILED_PRECONDITION
+                .withDescription("Session ist nicht offen")
+                .asRuntimeException()
+        }
 
         session.playerB = playerB
         session.status = SessionStatus.ACTIVE
+
         sessionRedisTemplate.opsForValue().set(key, session)
+        sessionRedisTemplate.expire(key, Duration.ofMinutes(20))
+
         return session
     }
+
 
     fun getSession(sessionId: String): GameSession? =
         sessionRedisTemplate.opsForValue().get("session:$sessionId") as? GameSession
@@ -80,13 +91,17 @@ class SessionService(
         if (session.playerB != null) return false
 
         val invite = Invitation(session.sessionId, requester)
-        invitationRedisTemplate.opsForList().rightPush("invite:$receiver", invite)
+        val key = "invite:$receiver"
+
+        invitationRedisTemplate.opsForList().rightPush(key, invite)
+        invitationRedisTemplate.expire(key, Duration.ofMinutes(2))
 
         val event = SessionEvent(session.sessionId, requester, receiver)
         invitationProducer.send(event)
 
         return true
     }
+
 
     fun getInvitationsForPlayer(player: String): List<Invitation> =
         invitationRedisTemplate.opsForList().range("invite:$player", 0, -1) ?: emptyList()

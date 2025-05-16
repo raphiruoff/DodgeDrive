@@ -20,10 +20,10 @@ class LogClient : BaseClient() {
                 .build()
 
             val response = stub.logEvent(request)
-            Log.d("LogClient", "✅ Event logged: $eventType ($delayMs ms) for gameId=$gameId")
+            Log.d("LogClient", "Event logged: $eventType ($delayMs ms) for gameId=$gameId")
             response.success
         } catch (e: Exception) {
-            Log.e("LogClient", "❌ Failed to log event: $eventType", e)
+            Log.e("LogClient", "Failed to log event: $eventType", e)
             false
         }
     }
@@ -35,10 +35,10 @@ class LogClient : BaseClient() {
                 .build()
 
             val response = stub.exportLogs(request)
-            Log.d("LogClient", "✅ Logs exported successfully for gameId=$gameId")
+            Log.d("LogClient", "Logs exported successfully for gameId=$gameId")
             response.success
         } catch (e: Exception) {
-            Log.e("LogClient", "❌ Failed to export logs for gameId=$gameId", e)
+            Log.e("LogClient", "Failed to export logs for gameId=$gameId", e)
             false
         }
     }
