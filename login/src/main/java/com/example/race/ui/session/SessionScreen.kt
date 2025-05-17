@@ -93,21 +93,30 @@ fun SessionScreen(
 
                     if (session.status == "WAITING_FOR_START") {
                         val gameId = withContext(Dispatchers.IO) {
-                            GameClient().getGameBySession(safeSessionId)?.gameId
-                                ?: GameClient().createGame(safeSessionId, safeUsername, sessionPartner ?: "")
+                            val existing = GameClient().getGameBySession(safeSessionId)?.gameId
+                            if (existing != null) {
+                                existing
+                            } else if (session.playerA == safeUsername) {
+                                // Nur Spieler A darf das Spiel erzeugen
+                                GameClient().createGame(safeSessionId, safeUsername, sessionPartner ?: "")
+                            } else {
+                                // Spieler B wartet und probiert später nochmal
+                                null
+                            }
                         }
 
                         if (!gameId.isNullOrBlank()) {
                             onNavigateToRaceGame(gameId, safeUsername)
+                            break
                         } else {
-                            infoMessage = "❌ Spiel konnte nicht erstellt werden"
+                            infoMessage = "⏳ Warte auf Spielinitialisierung..."
                         }
-                        break
                     }
                 }
             }
         }
     }
+
 
     DisposableEffect(Unit) {
         onDispose {

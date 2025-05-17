@@ -1,0 +1,82 @@
+syntax = "proto3";
+
+package de.ruoff.consistency.service.game;
+option java_multiple_files = true;
+
+service GameService {
+    rpc CreateGame(CreateGameRequest) returns (CreateGameResponse);
+    rpc GetGame(GetGameRequest) returns (GetGameResponse);
+    rpc GetGameBySession(GetGameBySessionRequest) returns (GetGameResponse);
+    rpc UpdateScore(UpdateScoreRequest) returns (UpdateScoreResponse);
+    rpc FinishGame(FinishGameRequest) returns (FinishGameResponse);
+    rpc IncrementScore(IncrementScoreRequest) returns (IncrementScoreResponse);
+}
+
+message CreateGameRequest {
+    string sessionId = 1;
+    string playerA = 2;
+    string playerB = 3;
+    int64 originTimestamp = 4;
+}
+
+message CreateGameResponse {
+    string gameId = 1;
+}
+
+message GetGameRequest {
+    string gameId = 1;
+}
+
+message GetGameBySessionRequest {
+    string sessionId = 1;
+}
+
+message Obstacle {
+    int64 timestamp = 1;
+    float x = 2;
+}
+
+message GetGameResponse {
+    string gameId = 1;
+    string sessionId = 2;
+    string playerA = 3;
+    string playerB = 4;
+    string status = 5;
+    string winner = 6;
+    map<string, int32> scores = 7;
+    string startTime = 8;
+    string endTime = 9;
+    repeated Obstacle obstacles = 10;
+}
+
+
+message UpdateScoreRequest {
+    string gameId = 1;
+    string player = 2;
+    int32 score = 3;
+    int64 originTimestamp = 4;
+}
+
+message UpdateScoreResponse {
+    bool success = 1;
+}
+
+message FinishGameRequest {
+    string gameId = 1;
+    string winner = 2;
+}
+
+message FinishGameResponse {
+    bool success = 1;
+}
+
+message IncrementScoreRequest {
+    string gameId = 1;
+    string player = 2;
+    int64 originTimestamp = 3;
+}
+
+message IncrementScoreResponse {
+    bool success = 1;
+}
+
