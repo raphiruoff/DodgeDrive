@@ -1,7 +1,6 @@
 package de.ruoff.consistency.service.leaderboard.events
 
-import de.ruoff.consistency.events.HighscoreEvent
-import de.ruoff.consistency.service.game.events.ScoreEvent
+import de.ruoff.consistency.events.ScoreEvent
 import de.ruoff.consistency.service.leaderboard.LeaderboardModel
 import de.ruoff.consistency.service.leaderboard.LeaderboardRepository
 import org.springframework.kafka.annotation.KafkaListener

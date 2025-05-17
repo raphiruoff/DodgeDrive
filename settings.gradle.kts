@@ -18,3 +18,5 @@ rootProject.name = "DodgeDrive"
 include(":login")
 include(":session-service")
 include(":event-models")
+include(":game-service")
+

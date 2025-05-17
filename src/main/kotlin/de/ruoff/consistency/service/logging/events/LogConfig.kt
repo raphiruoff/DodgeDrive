@@ -1,6 +1,6 @@
 package de.ruoff.consistency.service.logging.events
 
-import de.ruoff.consistency.service.game.events.GameLogEvent
+import de.ruoff.consistency.events.GameLogEvent
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.springframework.context.annotation.Bean

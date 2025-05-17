@@ -4,7 +4,7 @@ import android.util.Log
 import de.ruoff.consistency.service.game.*
 import io.grpc.ClientInterceptors
 
-class GameClient : BaseClient() {
+class GameClient : BaseClient(overridePort = 9093) {
 
     private val jwtInterceptor = JwtClientInterceptor { TokenHolder.jwtToken }
     private val interceptedChannel = ClientInterceptors.intercept(channel, jwtInterceptor)

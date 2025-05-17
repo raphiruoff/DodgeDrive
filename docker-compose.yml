@@ -82,6 +82,17 @@ services:
       REDIS_PORT: 6379
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
 
+  game-service:
+    build: ./game-service
+    ports:
+      - "9093:9093"
+    depends_on:
+      - redis
+      - kafka
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
 
 volumes:
   postgres_data: {}
