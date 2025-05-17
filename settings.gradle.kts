@@ -19,4 +19,6 @@ include(":login")
 include(":session-service")
 include(":event-models")
 include(":game-service")
+include(":leaderboard-service")
+
 

@@ -6,7 +6,7 @@ import de.ruoff.consistency.service.leaderboard.LeaderboardResponse
 import de.ruoff.consistency.service.leaderboard.LeaderboardEntry
 import io.grpc.ClientInterceptors
 
-class LeaderboardClient : BaseClient() {
+class LeaderboardClient : BaseClient(overridePort = 9094) {
 
     private val jwtInterceptor = JwtClientInterceptor { TokenHolder.jwtToken }
     private val interceptedChannel = ClientInterceptors.intercept(channel, jwtInterceptor)
