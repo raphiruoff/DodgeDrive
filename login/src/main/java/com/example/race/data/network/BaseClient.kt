@@ -6,11 +6,13 @@ import java.util.concurrent.TimeUnit
 
 open class BaseClient(
     host: String = "10.0.2.2",
-    port: Int = 9090
+    private val overridePort: Int? = null
 ) {
+    open val defaultPort: Int = 9090
+
     val channel: ManagedChannel by lazy {
         OkHttpChannelBuilder
-            .forAddress(host, port)
+            .forAddress(host, overridePort ?: defaultPort)
             .usePlaintext()
             .build()
     }

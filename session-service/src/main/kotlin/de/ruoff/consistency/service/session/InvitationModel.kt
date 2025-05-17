@@ -1,6 +1,6 @@
 package de.ruoff.consistency.service.session
 
-data class Invitation(
+data class InvitationModel(
     var sessionId: String = "",
     var requester: String = ""
 )

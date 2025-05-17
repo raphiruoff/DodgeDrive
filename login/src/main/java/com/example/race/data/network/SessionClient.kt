@@ -5,7 +5,7 @@ import de.ruoff.consistency.service.session.SessionServiceGrpc
 import io.grpc.ClientInterceptors
 import io.grpc.stub.StreamObserver
 
-class SessionClient : BaseClient() {
+class SessionClient : BaseClient(overridePort = 9101) {
 
     private val jwtInterceptor = JwtClientInterceptor { TokenHolder.jwtToken }
     private val interceptedChannel = ClientInterceptors.intercept(channel, jwtInterceptor)

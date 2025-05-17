@@ -70,6 +70,19 @@ services:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
+  session-service:
+    build: ./session-service
+    ports:
+      - "9101:9101"
+    depends_on:
+      - redis
+      - kafka
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+
+
 volumes:
   postgres_data: {}
   mongo_data: { }

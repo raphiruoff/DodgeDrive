@@ -1,5 +1,6 @@
 import com.google.protobuf.gradle.id
 
+
 plugins {
 	kotlin("jvm") version "1.9.23"
 	kotlin("plugin.spring") version "1.9.23"
@@ -9,6 +10,7 @@ plugins {
 	id("com.android.application") version "8.4.0" apply false
 	id("org.jetbrains.kotlin.android") version "1.9.23" apply false
 }
+
 
 
 group = "de.ruoff"
