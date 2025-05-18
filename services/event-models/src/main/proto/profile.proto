@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package de.ruoff.consistency.service.profile;
+
+service ProfileService {
+    rpc getProfile(UserIdRequest) returns (ProfileResponse);
+    rpc createProfile(CreateProfileRequest) returns (CreateProfileResponse);
+}
+
+message UserIdRequest {
+    string username = 1;
+}
+
+message ProfileResponse {
+    string username = 1;
+}
+
+message CreateProfileRequest {
+    string username = 1;
+}
+
+message CreateProfileResponse {
+    string message = 1;
+}

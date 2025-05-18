@@ -15,10 +15,12 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "DodgeDrive"
-include(":login")
-include(":session-service")
-include(":event-models")
-include(":game-service")
-include(":leaderboard-service")
+include("login")
+include(":services:session-service")
+include(":services:event-models")
+include(":services:game-service")
+include(":services:leaderboard-service")
+include(":services:profile-service")
+
 
 

@@ -71,7 +71,7 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
   session-service:
-    build: ./session-service
+    build: ./services/session-service
     ports:
       - "9101:9101"
     depends_on:
@@ -83,7 +83,7 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
 
   game-service:
-    build: ./game-service
+    build: ./services/game-service
     ports:
       - "9093:9093"
     depends_on:
@@ -95,7 +95,7 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
 
   leaderboard-service:
-    build: ./leaderboard-service
+    build: ./services/leaderboard-service
     container_name: leaderboard-service
     ports:
       - "9094:9094"
@@ -105,6 +105,18 @@ services:
     environment:
       SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/leaderboard
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+
+  profile-service:
+    build: ./services/profile-service
+    container_name: profile-service
+    ports:
+      - "9095:9095"
+    depends_on:
+      - postgres
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/profiledatabase
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres123
 
 
 volumes:

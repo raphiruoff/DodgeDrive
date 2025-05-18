@@ -8,7 +8,7 @@ plugins {
     id("com.google.protobuf") version "0.9.4"
 }
 
-group = "de.ruoff.leaderboard"
+group = "de.ruoff.profile"
 version = "0.0.1-SNAPSHOT"
 
 java {
@@ -24,15 +24,12 @@ repositories {
 extra["springGrpcVersion"] = "0.3.0"
 
 dependencies {
-    implementation(project(":event-models"))
+    implementation(project(":services:event-models"))
 
     // Spring
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter")
-    implementation("org.springframework.boot:spring-boot-starter-data-mongodb")
-    implementation("org.springframework.kafka:spring-kafka")
-
-    implementation("javax.annotation:javax.annotation-api:1.3.2")
-
+    runtimeOnly("org.postgresql:postgresql")
 
     // gRPC
     implementation("org.springframework.grpc:spring-grpc-spring-boot-starter")

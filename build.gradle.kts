@@ -29,7 +29,7 @@ repositories {
 extra["springGrpcVersion"] = "0.3.0"
 
 dependencies {
-	implementation(project(":event-models"))
+	implementation(project(":services:event-models"))
 	implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 	implementation("io.jsonwebtoken:jjwt-api:0.11.5")
 	runtimeOnly("io.jsonwebtoken:jjwt-impl:0.11.5")

@@ -1,18 +1,17 @@
 package de.ruoff.consistency.service.friends
 
 import de.ruoff.consistency.service.friends.events.FriendProdcuer
-import de.ruoff.consistency.service.profile.ProfileRepository
 import org.springframework.stereotype.Service
 
 @Service
 class FriendService(
     private val friendRepository: FriendsRepository,
-    private val profileRepository: ProfileRepository,
+    private val profileClient: ProfileClient,
     private val friendEventProducer: FriendProdcuer
 ) {
 
     fun userExists(username: String): Boolean =
-        profileRepository.findByUsername(username) != null
+        profileClient.userExists(username)
 
     fun areAlreadyFriends(user1: String, user2: String): Boolean =
         friendRepository.findByRequesterUsernameAndReceiverUsername(user1, user2)?.accepted == true

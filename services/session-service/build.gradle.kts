@@ -25,7 +25,7 @@ repositories {
 extra["springGrpcVersion"] = "0.3.0"
 
 dependencies {
-    implementation(project(":event-models"))
+    implementation(project(":services:event-models"))
     implementation("org.springframework.boot:spring-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.kafka:spring-kafka")

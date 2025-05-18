@@ -3,7 +3,7 @@ package com.example.race.data.network
 
 import io.grpc.ClientInterceptors
 
-class ProfileClient : BaseClient() {
+class ProfileClient : BaseClient(overridePort = 9095) {
 
     private val jwtInterceptor = JwtClientInterceptor { TokenHolder.jwtToken }
     private val interceptedChannel = ClientInterceptors.intercept(channel, jwtInterceptor)

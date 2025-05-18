@@ -3,7 +3,7 @@ syntax = "proto3";
 package de.ruoff.consistency.service.auth;
 
 option java_multiple_files = true;
-option java_package = "de.ruoff.consistency.service.auth"; // Einheitlich!
+option java_package = "de.ruoff.consistency.service.auth";
 
 service AuthService {
   rpc Register(RegisterRequest) returns (RegisterResponse);

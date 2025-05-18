@@ -4,14 +4,11 @@ import io.grpc.stub.StreamObserver
 import org.springframework.grpc.server.service.GrpcService
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import io.grpc.Status
-import de.ruoff.consistency.service.profile.ProfileRepository
-import de.ruoff.consistency.service.profile.ProfileModel
 
 @GrpcService
 class AuthController(
     val authRepository: AuthRepository,
     private val jwtService: JwtService,
-    private val profileRepository: ProfileRepository
 ) : AuthServiceGrpc.AuthServiceImplBase() {
 
     private val encoder = BCryptPasswordEncoder()
@@ -21,13 +18,15 @@ class AuthController(
     fun verifyPassword(plainPassword: String, hashedPassword: String): Boolean =
         encoder.matches(plainPassword, hashedPassword)
 
+
     override fun register(request: RegisterRequest, responseObserver: StreamObserver<RegisterResponse>) {
         try {
             if (authRepository.existsByUsername(request.username)) {
-                val status = Status.ALREADY_EXISTS
-                    .withDescription("Benutzername bereits vergeben.")
-                    .asRuntimeException()
-                responseObserver.onError(status)
+                responseObserver.onError(
+                    Status.ALREADY_EXISTS
+                        .withDescription("Benutzername bereits vergeben.")
+                        .asRuntimeException()
+                )
                 return
             }
 
@@ -35,10 +34,16 @@ class AuthController(
             val user = AuthModel(username = request.username, password = hashedPassword)
             authRepository.save(user)
 
-            val profile = ProfileModel(
-                username = request.username,
-            )
-            profileRepository.save(profile)
+            // Aufruf an den profile-service via gRPC
+            val profileCreated = ProfileClient().createProfile(request.username)
+            if (!profileCreated) {
+                responseObserver.onError(
+                    Status.INTERNAL
+                        .withDescription("Profil konnte nicht erstellt werden.")
+                        .asRuntimeException()
+                )
+                return
+            }
 
             val response = RegisterResponse.newBuilder()
                 .setMessage("Registrierung erfolgreich")
@@ -46,7 +51,6 @@ class AuthController(
 
             responseObserver.onNext(response)
             responseObserver.onCompleted()
-
         } catch (e: Exception) {
             responseObserver.onError(
                 Status.INTERNAL
@@ -55,6 +59,7 @@ class AuthController(
             )
         }
     }
+
 
     override fun login(request: LoginRequest, responseObserver: StreamObserver<LoginResponse>) {
         try {
