@@ -9,7 +9,9 @@ import io.grpc.Status
 class AuthController(
     val authRepository: AuthRepository,
     private val jwtService: JwtService,
+    private val profileClient: ProfileClient
 ) : AuthServiceGrpc.AuthServiceImplBase() {
+
 
     private val encoder = BCryptPasswordEncoder()
 
@@ -34,8 +36,7 @@ class AuthController(
             val user = AuthModel(username = request.username, password = hashedPassword)
             authRepository.save(user)
 
-            // Aufruf an den profile-service via gRPC
-            val profileCreated = ProfileClient().createProfile(request.username)
+            val profileCreated = profileClient.createProfile(request.username)
             if (!profileCreated) {
                 responseObserver.onError(
                     Status.INTERNAL

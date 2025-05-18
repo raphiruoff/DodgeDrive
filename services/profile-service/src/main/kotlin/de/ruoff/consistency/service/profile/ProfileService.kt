@@ -9,6 +9,9 @@ class ProfileService(
     fun getProfileByUsername(username: String): ProfileModel? {
         return profileRepository.findByUsername(username)
     }
+    fun saveProfile(profile: ProfileModel) {
+        profileRepository.save(profile)
+    }
 }
 
 

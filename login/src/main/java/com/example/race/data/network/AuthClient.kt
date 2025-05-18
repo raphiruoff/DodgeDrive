@@ -9,7 +9,7 @@ import de.ruoff.consistency.service.ping.PingRequest
 import de.ruoff.consistency.service.ping.PingServiceGrpc
 import io.grpc.ClientInterceptors
 
-class AuthClient : BaseClient() {
+class AuthClient : BaseClient(overridePort = 9096) {
 
     private val TAG = "AuthClient"
 

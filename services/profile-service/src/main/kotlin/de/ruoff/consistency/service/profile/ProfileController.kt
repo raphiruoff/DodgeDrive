@@ -31,6 +31,30 @@ class ProfileController(
         responseObserver.onNext(response)
         responseObserver.onCompleted()
     }
+
+    override fun createProfile(
+        request: Profile.CreateProfileRequest,
+        responseObserver: StreamObserver<Profile.CreateProfileResponse>
+    ) {
+        try {
+            val profile = ProfileModel(username = request.username)
+            profileService.saveProfile(profile)
+
+            val response = Profile.CreateProfileResponse.newBuilder()
+                .setMessage("Profil erfolgreich erstellt")
+                .build()
+
+            responseObserver.onNext(response)
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            responseObserver.onError(
+                Status.INTERNAL
+                    .withDescription("Fehler beim Erstellen des Profils: ${e.message}")
+                    .asRuntimeException()
+            )
+        }
+    }
+
 }
 
 

@@ -18,12 +18,15 @@ class ProfileClient {
 
     fun createProfile(username: String): Boolean {
         return try {
+            println("📨 Sende createProfile für $username")
             val request = CreateProfileRequest.newBuilder()
                 .setUsername(username)
                 .build()
             stub.createProfile(request)
+            println("✅ Profil erfolgreich erstellt für $username")
             true
         } catch (e: Exception) {
+            println("❌ Fehler beim createProfile: ${e.message}")
             e.printStackTrace()
             false
         }

@@ -21,6 +21,8 @@ include(":services:event-models")
 include(":services:game-service")
 include(":services:leaderboard-service")
 include(":services:profile-service")
+include(":services:auth-service")
+
 
 
 
