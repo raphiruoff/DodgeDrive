@@ -136,8 +136,15 @@ services:
       - "9098:9098"
     depends_on:
       - kafka
+      - mongodb
     environment:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_DATA_MONGODB_HOST: mongodb
+      SPRING_DATA_MONGODB_PORT: 27017
+      SPRING_DATA_MONGODB_DATABASE: logging
+
+
+
 
 
 volumes:

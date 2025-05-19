@@ -31,7 +31,7 @@ class LogService(
         val formattedTime = formatter.format(timestamp)
         val file = File(logsDir, "log_export_${gameId}_$formattedTime.csv")
 
-        val logs = repository.findAll().filter { it.gameId == gameId }
+        val logs = repository.findByGameId(gameId)
         if (logs.isEmpty()) {
             println("⚠️ Keine Logs für gameId=$gameId gefunden.")
             return
