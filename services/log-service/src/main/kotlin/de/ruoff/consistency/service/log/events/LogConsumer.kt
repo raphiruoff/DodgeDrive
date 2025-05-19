@@ -17,17 +17,25 @@ class LogConsumer(
     )
     fun consume(event: GameLogEvent) {
         println("📥 Received GameLogEvent: $event")
+
+        val now = System.currentTimeMillis()
+        val delay = now - event.originTimestamp
+
         logService.saveLog(
             gameId = event.gameId,
             username = event.username,
             eventType = event.eventType,
-            delayMs = System.currentTimeMillis() - event.originTimestamp
+            delayMs = delay
         )
 
-        if (event.eventType == "game_finished") {
-            println("📁 Exportiere Logs wegen game_finished für ${event.username}")
+        if (event.eventType == "game_finished" && event.isWinner) {
+            println("🏁 Gewinner ${event.username} triggert Log-Export für ${event.gameId}")
             Thread.sleep(1000)
             logService.exportLogsToCsv(event.gameId)
+        } else if (event.eventType == "game_finished") {
+            println("⏭️ Kein Export: ${event.username} ist nicht der Gewinner.")
         }
+
     }
 }
+

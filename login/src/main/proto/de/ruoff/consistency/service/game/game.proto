@@ -49,7 +49,6 @@ message GetGameResponse {
     repeated Obstacle obstacles = 10;
 }
 
-
 message UpdateScoreRequest {
     string gameId = 1;
     string player = 2;
@@ -63,7 +62,6 @@ message UpdateScoreResponse {
 
 message FinishGameRequest {
     string gameId = 1;
-    string winner = 2;
 }
 
 message FinishGameResponse {
@@ -79,4 +77,3 @@ message IncrementScoreRequest {
 message IncrementScoreResponse {
     bool success = 1;
 }
-

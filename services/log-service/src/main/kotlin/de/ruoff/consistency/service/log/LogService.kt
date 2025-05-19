@@ -37,15 +37,31 @@ class LogService(
             return
         }
 
+        val sortedLogs = logs.sortedBy { it.timestamp }
+
         val csv = StringBuilder()
         csv.appendLine("gameId;timestamp;username;eventType;delayMs")
-        logs.forEach { log ->
+        sortedLogs.forEach { log ->
             csv.appendLine("${log.gameId};${log.timestamp};${log.username};${log.eventType};${log.delayMs}")
         }
 
+        // Game Start Delay berechnen (Unterschied zwischen frühestem und spätestem game_start)
+        val gameStartLogs = sortedLogs.filter { it.eventType == "game_start" }
+        if (gameStartLogs.size >= 2) {
+            val minTs = gameStartLogs.minOf { it.timestamp.toEpochMilli() }
+            val maxTs = gameStartLogs.maxOf { it.timestamp.toEpochMilli() }
+            val delay = maxTs - minTs
+            val latestTimestamp = Instant.ofEpochMilli(maxTs)
+            csv.appendLine("${gameId};${latestTimestamp};SYSTEM;METRIC_game_start_delay;$delay")
+        } else {
+            println("⚠Nur ${gameStartLogs.size} game_start-Event(s) gefunden – keine Verzögerung berechnet.")
+        }
+
         file.writeText(csv.toString())
-        println("✅ Logs for game $gameId exported to ${file.absolutePath}")
+        println("Logs for game $gameId exported to ${file.absolutePath}")
     }
+
+
 
 
 }

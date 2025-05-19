@@ -131,7 +131,7 @@ class GameController(
         request: FinishGameRequest,
         responseObserver: StreamObserver<FinishGameResponse>
     ) {
-        val success = gameService.finishGame(request.gameId, request.winner)
+        val success = gameService.finishGame(request.gameId)
         val response = FinishGameResponse.newBuilder().setSuccess(success).build()
         responseObserver.onNext(response)
         responseObserver.onCompleted()

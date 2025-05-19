@@ -52,11 +52,10 @@ class GameClient : BaseClient(overridePort = 9093) {
         }
     }
 
-    fun finishGame(gameId: String, winner: String): Boolean {
+    fun finishGame(gameId: String): Boolean {
         return try {
             val request = FinishGameRequest.newBuilder()
                 .setGameId(gameId)
-                .setWinner(winner)
                 .build()
             val response = stub.finishGame(request)
             response.success
@@ -65,6 +64,9 @@ class GameClient : BaseClient(overridePort = 9093) {
             false
         }
     }
+
+
+
 
     fun getGameBySession(sessionId: String): GetGameResponse? {
         return try {

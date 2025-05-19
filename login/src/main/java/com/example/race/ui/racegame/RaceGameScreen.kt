@@ -42,6 +42,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
     val opponentScore = remember { mutableStateOf(0) }
     val isGameOver = remember { mutableStateOf(false) }
     val isOpponentGameOver = remember { mutableStateOf(false) }
+    val gameResultMessage = remember { mutableStateOf<String?>(null) }
 
     val gameStartTime = remember { SystemClock.elapsedRealtime() }
     var gameStartDelay by remember { mutableStateOf(0L) }
@@ -250,26 +251,32 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
 
             if (isGameOver.value) {
                 LaunchedEffect(true) {
-                    AllClients.gameClient.finishGame(gameId, username)
+                    AllClients.gameClient.finishGame(gameId)
                     AllClients.logClient.exportLogs(gameId)
+
+                    val game = AllClients.gameClient.getGame(gameId)
+                    val winner = game?.winner
+
+                    gameResultMessage.value = when {
+                        winner == username -> "🏆 Du hast gewonnen!"
+                        winner == "draw" || winner.isNullOrEmpty() -> "🤝 Unentschieden"
+                        else -> "😢 Du hast verloren"
+                    }
                 }
+
 
                 Column(
                     modifier = Modifier.fillMaxSize().background(Color(0x99000000)),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("💥 Game Over", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text(
+                        gameResultMessage.value ?: "💥 Spiel beendet",
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Score: $playerScore", fontSize = 24.sp, color = Color.White)
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Button(onClick = {
-                        obstacles.clear()
-                        isGameOver.value = false
-                        isOpponentGameOver.value = false
-                        isStarted = true
-                    }) { Text("🔄 Neustart") }
-
                     Button(onClick = {
                         navController.navigate(Routes.MAIN) {
                             popUpTo(Routes.RACEGAME) { inclusive = true }

@@ -147,30 +147,53 @@ class GameService(
         return true
     }
 
-    fun finishGame(gameId: String, winner: String): Boolean {
+    fun finishGame(gameId: String): Boolean {
         val game = gameRepository.findById(gameId) ?: return false
+
+        val scoreA = game.scores[game.playerA] ?: 0
+        val scoreB = game.scores[game.playerB] ?: 0
+
+        val winner: String = when {
+            scoreA > scoreB -> game.playerA
+            scoreB > scoreA -> game.playerB
+            else -> "draw"
+        }
+
         val success = gameRepository.finishGame(gameId, winner)
         if (!success) return false
 
-        val score = game.scores[winner]
+        if (winner != "draw") {
+            val score = game.scores[winner]
+            if (score != null) {
+                scoreProducer.send(ScoreEvent(username = winner, score = score))
+            }
 
-        if (score != null) {
-            scoreProducer.send(ScoreEvent(username = winner, score = score))
-        } else {
-            println("⚠️ Kein Score für Gewinner $winner – ScoreEvent wird übersprungen")
-        }
-
-        gameLogProducer.send( // wird jetzt **immer** erreicht
-            GameLogEvent(
-                gameId = gameId,
-                username = winner,
-                eventType = "game_finished",
-                originTimestamp = System.currentTimeMillis()
+            gameLogProducer.send(
+                GameLogEvent(
+                    gameId = gameId,
+                    username = winner,
+                    eventType = "game_finished",
+                    originTimestamp = System.currentTimeMillis(),
+                    isWinner = true
+                )
             )
-        )
+        } else {
+            gameLogProducer.send(
+                GameLogEvent(
+                    gameId = gameId,
+                    username = "draw",
+                    eventType = "game_finished",
+                    originTimestamp = System.currentTimeMillis(),
+                    isWinner = false
+                )
+            )
+        }
 
         return true
     }
+
+
+
 
 
 }
