@@ -37,7 +37,9 @@ class ProfileController(
         responseObserver: StreamObserver<Profile.CreateProfileResponse>
     ) {
         try {
-            val profile = ProfileModel(username = request.username)
+            val profile = ProfileModel(
+                username = request.username
+            )
             profileService.saveProfile(profile)
 
             val response = Profile.CreateProfileResponse.newBuilder()
@@ -54,7 +56,4 @@ class ProfileController(
             )
         }
     }
-
 }
-
-

@@ -22,6 +22,10 @@ include(":services:game-service")
 include(":services:leaderboard-service")
 include(":services:profile-service")
 include(":services:auth-service")
+include(":services:friends-service")
+include(":services:log-service")
+
+
 
 
 

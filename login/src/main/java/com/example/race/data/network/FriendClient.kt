@@ -5,7 +5,7 @@ import de.ruoff.consistency.service.friends.Friends
 import io.grpc.ClientInterceptors
 import io.grpc.stub.StreamObserver
 
-class FriendClient : BaseClient() {
+class FriendClient : BaseClient(overridePort = 9097) {
     private val jwtInterceptor = JwtClientInterceptor { TokenHolder.jwtToken }
     private val interceptedChannel = ClientInterceptors.intercept(channel, jwtInterceptor)
     private val stub = FriendServiceGrpc.newBlockingStub(interceptedChannel)

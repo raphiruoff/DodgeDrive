@@ -24,21 +24,6 @@ services:
       - mongo_data:/data/db
     restart: always
 
-  springboot-app:
-    build: .
-    container_name: springboot-app
-    volumes:
-      - ./export:/app/export
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/profiledatabase
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres123
-    ports:
-      - "9090:9090"
-    depends_on:
-      - postgres
-      - kafka
-
   redis:
     image: redis:latest
     container_name: redis
@@ -114,7 +99,7 @@ services:
     depends_on:
       - postgres
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/profiledatabase
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/profile
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres123
 
@@ -129,6 +114,30 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/auth
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres123
+
+  friends-service:
+    build: ./services/friends-service
+    container_name: friends-service
+    ports:
+      - "9097:9097"
+    depends_on:
+      - postgres
+      - kafka
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/friends
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres123
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+
+  log-service:
+    build: ./services/log-service
+    container_name: log-service
+    ports:
+      - "9098:9098"
+    depends_on:
+      - kafka
+    environment:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
 
 
 volumes:

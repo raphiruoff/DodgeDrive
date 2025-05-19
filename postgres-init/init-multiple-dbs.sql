@@ -1,2 +1,3 @@
 CREATE DATABASE auth;
-CREATE DATABASE profiledatabase;
+CREATE DATABASE profile;
+CREATE DATABASE friends;
