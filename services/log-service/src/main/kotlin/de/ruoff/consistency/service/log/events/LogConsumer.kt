@@ -27,8 +27,8 @@ class LogConsumer(
             eventType = event.eventType,
             delayMs = delay
         )
-
-        if (event.eventType == "game_finished" && event.isWinner) {
+//        if (event.eventType == "game_finished" && event.isWinner) {
+        if (event.eventType == "game_finished" ) {
             println("🏁 Gewinner ${event.username} triggert Log-Export für ${event.gameId}")
             Thread.sleep(1000)
             logService.exportLogsToCsv(event.gameId)

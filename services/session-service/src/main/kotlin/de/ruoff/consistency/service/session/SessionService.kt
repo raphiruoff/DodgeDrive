@@ -1,5 +1,7 @@
 package de.ruoff.consistency.service.session
 
+import de.ruoff.consistency.events.GameLogEvent
+import de.ruoff.consistency.service.session.events.GameLogProducer
 import de.ruoff.consistency.service.session.events.SessionEvent
 import de.ruoff.consistency.service.session.events.SessionProducer
 import org.springframework.data.redis.core.RedisTemplate
@@ -20,7 +22,8 @@ class SessionService(
     private val invitationRedisTemplate: RedisTemplate<String, InvitationModel>,
     //private val gameLogProducer: GameLogProducer,
 
-    private val invitationProducer: SessionProducer
+    private val invitationProducer: SessionProducer,
+    private val gameLogProducer: GameLogProducer
 
 ) {
 
@@ -142,7 +145,7 @@ class SessionService(
         session.status = SessionStatus.WAITING_FOR_START
         sessionRedisTemplate.opsForValue().set(key, session)
 
-      /*  gameLogProducer.send(
+        gameLogProducer.send(
             GameLogEvent(
                 gameId = session.sessionId,
                 username = session.playerA,
@@ -157,7 +160,7 @@ class SessionService(
                 eventType = "game_start",
                 originTimestamp = now
             )
-        )*/
+        )
 
         return true
     }
