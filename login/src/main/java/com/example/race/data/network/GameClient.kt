@@ -20,7 +20,7 @@ class GameClient : BaseClient(overridePort = 9093) {
             val response = stub.createGame(request)
             response.gameId
         } catch (e: Exception) {
-            Log.e("GameClient", "❌ createGame failed", e)
+            Log.e("GameClient", " createGame failed", e)
             null
         }
     }
@@ -32,7 +32,7 @@ class GameClient : BaseClient(overridePort = 9093) {
                 .build()
             stub.getGame(request)
         } catch (e: Exception) {
-            Log.e("GameClient", "❌ getGame failed", e)
+            Log.e("GameClient", " getGame failed", e)
             null
         }
     }
@@ -47,23 +47,25 @@ class GameClient : BaseClient(overridePort = 9093) {
             val response = stub.incrementScore(request)
             response.success
         } catch (e: Exception) {
-            Log.e("GameClient", "❌ incrementScore failed", e)
+            Log.e("GameClient", " incrementScore failed", e)
             false
         }
     }
 
-    fun finishGame(gameId: String): Boolean {
+    fun finishGame(gameId: String, player: String): Boolean {
         return try {
             val request = FinishGameRequest.newBuilder()
                 .setGameId(gameId)
+                .setPlayer(player)
                 .build()
             val response = stub.finishGame(request)
             response.success
         } catch (e: Exception) {
-            Log.e("GameClient", "❌ finishGame failed", e)
+            Log.e("GameClient", " finishGame failed", e)
             false
         }
     }
+
 
 
 
@@ -75,7 +77,7 @@ class GameClient : BaseClient(overridePort = 9093) {
                 .build()
             stub.getGameBySession(request)
         } catch (e: Exception) {
-            Log.e("GameClient", "❌ getGameBySession failed", e)
+            Log.e("GameClient", " getGameBySession failed", e)
             null
         }
     }

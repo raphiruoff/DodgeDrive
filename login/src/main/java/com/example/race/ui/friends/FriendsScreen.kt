@@ -67,7 +67,7 @@ fun FriendsScreen(
                     })
                 }
             } catch (e: Exception) {
-                infoMessage = "❌ Fehler beim Laden: ${e.message}"
+                infoMessage = " Fehler beim Laden: ${e.message}"
             }
         }
     }
@@ -168,7 +168,7 @@ fun FriendsScreen(
                         infoMessage = friendClient.sendFriendRequest(it, newFriendUsername)
                         newFriendUsername = ""
                     } catch (e: Exception) {
-                        infoMessage = "❌ Fehler beim Senden: ${e.message}"
+                        infoMessage = " Fehler beim Senden: ${e.message}"
                     }
                 }
             },

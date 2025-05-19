@@ -62,7 +62,9 @@ message UpdateScoreResponse {
 
 message FinishGameRequest {
     string gameId = 1;
+    string player = 2;
 }
+
 message FinishGameResponse {
     bool success = 1;
 }

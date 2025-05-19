@@ -251,7 +251,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
 
             if (isGameOver.value) {
                 LaunchedEffect(true) {
-                    AllClients.gameClient.finishGame(gameId)
+                    AllClients.gameClient.finishGame(gameId, username)
                     AllClients.logClient.exportLogs(gameId)
 
                     val game = AllClients.gameClient.getGame(gameId)

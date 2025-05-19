@@ -147,50 +147,48 @@ class GameService(
         return true
     }
 
-    fun finishGame(gameId: String): Boolean {
+    fun finishGame(gameId: String, player: String): Boolean {
+        // 1. Spieler als fertig markieren
         val game = gameRepository.findById(gameId) ?: return false
+        game.finishedPlayers.add(player)
+        gameRepository.save(game)
 
-        val scoreA = game.scores[game.playerA] ?: 0
-        val scoreB = game.scores[game.playerB] ?: 0
+        // 2. Aktualisierte Daten holen (um Scores des Gegners zu bekommen)
+        val updated = gameRepository.findById(gameId) ?: return false
 
-        val winner: String = when {
-            scoreA > scoreB -> game.playerA
-            scoreB > scoreA -> game.playerB
-            else -> "draw"
-        }
+        // 3. Prüfen ob beide fertig sind
+        if (updated.finishedPlayers.containsAll(listOf(updated.playerA, updated.playerB))) {
+            val scoreA = updated.scores[updated.playerA] ?: 0
+            val scoreB = updated.scores[updated.playerB] ?: 0
 
-        val success = gameRepository.finishGame(gameId, winner)
-        if (!success) return false
+            val winner = when {
+                scoreA > scoreB -> updated.playerA
+                scoreB > scoreA -> updated.playerB
+                else -> "draw"
+            }
 
-        if (winner != "draw") {
-            val score = game.scores[winner]
-            if (score != null) {
-                scoreProducer.send(ScoreEvent(username = winner, score = score))
+            val success = gameRepository.finishGame(gameId, winner)
+            if (!success) return false
+
+            if (winner != "draw") {
+                scoreProducer.send(ScoreEvent(username = winner, score = updated.scores[winner] ?: 0))
             }
 
             gameLogProducer.send(
                 GameLogEvent(
                     gameId = gameId,
-                    username = winner,
+                    username = if (winner == "draw") "draw" else winner,
                     eventType = "game_finished",
                     originTimestamp = System.currentTimeMillis(),
-                    isWinner = true
-                )
-            )
-        } else {
-            gameLogProducer.send(
-                GameLogEvent(
-                    gameId = gameId,
-                    username = "draw",
-                    eventType = "game_finished",
-                    originTimestamp = System.currentTimeMillis(),
-                    isWinner = false
+                    isWinner = winner != "draw"
                 )
             )
         }
 
         return true
     }
+
+
 
 
 

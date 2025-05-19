@@ -131,11 +131,15 @@ class GameController(
         request: FinishGameRequest,
         responseObserver: StreamObserver<FinishGameResponse>
     ) {
-        val success = gameService.finishGame(request.gameId)
+        val success = gameService.finishGame(
+            gameId = request.gameId,
+            player = request.player
+        )
         val response = FinishGameResponse.newBuilder().setSuccess(success).build()
         responseObserver.onNext(response)
         responseObserver.onCompleted()
     }
+
 
     override fun incrementScore(
         request: IncrementScoreRequest,
