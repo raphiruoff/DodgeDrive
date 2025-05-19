@@ -102,7 +102,7 @@ fun FriendsScreen(
             elevation = CardDefaults.cardElevation(4.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text("✅ Freunde", style = MaterialTheme.typography.titleMedium)
+                Text("Freunde", style = MaterialTheme.typography.titleMedium)
                 if (friends.isEmpty()) {
                     Text("Noch keine Freunde hinzugefügt.")
                 } else {

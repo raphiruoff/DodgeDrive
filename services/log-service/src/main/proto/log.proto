@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+option java_package = "de.ruoff.consistency.service.logging";
+option java_multiple_files = true;
+
+service LoggingService {
+    rpc LogEvent (LogEventRequest) returns (LogEventResponse);
+    rpc ExportLogs (ExportRequest) returns (ExportResponse);
+}
+
+message LogEventRequest {
+    string gameId = 1;
+    string username = 2;
+    string eventType = 3;
+    int64 delayMs = 4;
+}
+
+message LogEventResponse {
+    bool success = 1;
+}
+
+message ExportRequest {
+    string gameId = 1;
+}
+message ExportResponse {
+    bool success = 1;
+}
