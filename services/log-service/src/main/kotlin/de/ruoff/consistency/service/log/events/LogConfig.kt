@@ -1,4 +1,4 @@
-package de.ruoff.consistency.service.logging.events
+package de.ruoff.consistency.service.log.events
 
 import de.ruoff.consistency.events.GameLogEvent
 import org.apache.kafka.clients.consumer.ConsumerConfig

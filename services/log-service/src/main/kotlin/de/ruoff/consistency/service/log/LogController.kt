@@ -1,5 +1,9 @@
-package de.ruoff.consistency.service.logging
+package de.ruoff.consistency.service.log
 
+import de.ruoff.consistency.service.logging.ExportRequest
+import de.ruoff.consistency.service.logging.ExportResponse
+import de.ruoff.consistency.service.logging.LogEventRequest
+import de.ruoff.consistency.service.logging.LogEventResponse
 import de.ruoff.consistency.service.logging.LoggingServiceGrpc.LoggingServiceImplBase
 import io.grpc.stub.StreamObserver
 import org.springframework.grpc.server.service.GrpcService

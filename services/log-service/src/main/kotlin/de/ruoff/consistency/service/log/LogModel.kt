@@ -1,4 +1,4 @@
-package de.ruoff.consistency.service.logging
+package de.ruoff.consistency.service.log
 
 import org.springframework.data.annotation.Id
 import org.springframework.data.mongodb.core.mapping.Document

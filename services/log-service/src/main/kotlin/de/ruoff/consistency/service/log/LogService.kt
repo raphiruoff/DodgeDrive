@@ -1,4 +1,4 @@
-package de.ruoff.consistency.service.logging
+package de.ruoff.consistency.service.log
 
 import org.springframework.stereotype.Service
 import java.io.File
@@ -23,7 +23,7 @@ class LogService(
     }
 
     fun exportLogsToCsv(gameId: String) {
-        val logsDir = File("${System.getProperty("user.dir")}/export")
+        val logsDir = File("/app/export")  // Containerpfad
         if (!logsDir.exists()) logsDir.mkdirs()
 
         val timestamp = Instant.now().atZone(java.time.ZoneId.systemDefault())
@@ -33,12 +33,12 @@ class LogService(
 
         val logs = repository.findByGameId(gameId)
         if (logs.isEmpty()) {
-            println("⚠️ Keine Logs für gameId=$gameId gefunden.")
+            println("Keine Logs für gameId=$gameId gefunden.")
             return
         }
+
         val csv = StringBuilder()
         csv.appendLine("gameId;timestamp;username;eventType;delayMs")
-
         logs.forEach { log ->
             csv.appendLine("${log.gameId};${log.timestamp};${log.username};${log.eventType};${log.delayMs}")
         }
@@ -46,5 +46,6 @@ class LogService(
         file.writeText(csv.toString())
         println("✅ Logs for game $gameId exported to ${file.absolutePath}")
     }
+
 
 }

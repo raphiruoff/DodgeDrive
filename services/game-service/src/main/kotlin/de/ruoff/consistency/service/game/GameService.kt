@@ -1,7 +1,7 @@
 package de.ruoff.consistency.service.game
 
+import de.ruoff.consistency.events.GameLogEvent
 import de.ruoff.consistency.events.ScoreEvent
-import de.ruoff.consistency.service.game.events.GameLogEvent
 import de.ruoff.consistency.service.game.events.GameLogProducer
 import de.ruoff.consistency.service.game.events.ScoreProducer
 import org.springframework.stereotype.Service
@@ -152,15 +152,25 @@ class GameService(
         val success = gameRepository.finishGame(gameId, winner)
         if (!success) return false
 
-        val score = game.scores[winner] ?: return true
+        val score = game.scores[winner]
 
-        scoreProducer.send(
-            ScoreEvent(
+        if (score != null) {
+            scoreProducer.send(ScoreEvent(username = winner, score = score))
+        } else {
+            println("⚠️ Kein Score für Gewinner $winner – ScoreEvent wird übersprungen")
+        }
+
+        gameLogProducer.send( // wird jetzt **immer** erreicht
+            GameLogEvent(
+                gameId = gameId,
                 username = winner,
-                score = score
+                eventType = "game_finished",
+                originTimestamp = System.currentTimeMillis()
             )
         )
 
         return true
     }
+
+
 }
