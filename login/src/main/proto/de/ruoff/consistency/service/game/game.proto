@@ -47,6 +47,8 @@ message GetGameResponse {
     string startTime = 8;
     string endTime = 9;
     repeated Obstacle obstacles = 10;
+    repeated string finishedPlayers = 11;
+
 }
 
 message UpdateScoreRequest {

@@ -56,6 +56,7 @@ class GameController(
                 .setPlayerB(it.playerB)
                 .setStatus(it.status.name)
                 .setWinner(it.winner ?: "")
+                .addAllFinishedPlayers(it.finishedPlayers)
                 .putAllScores(it.scores)
                 .addAllObstacles(
                     it.obstacles.map { obstacle ->

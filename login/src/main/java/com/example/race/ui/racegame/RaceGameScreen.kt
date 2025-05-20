@@ -135,36 +135,37 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                     }
                 }
                 LaunchedEffect(renderTick.value) {
-                    if (isGameOver.value) return@LaunchedEffect
-
                     val iterator = obstacles.iterator()
                     val toRemove = mutableListOf<Obstacle>()
 
-                    while (iterator.hasNext()) {
-                        val obstacle = iterator.next()
-                        obstacle.y += 8f
+                    if (!isGameOver.value) {
+                        while (iterator.hasNext()) {
+                            val obstacle = iterator.next()
+                            obstacle.y += 8f
 
-                        if (checkCollision(carState.value, obstacle)) {
-                            isGameOver.value = true
-                        }
+                            if (checkCollision(carState.value, obstacle)) {
+                                isGameOver.value = true
+                            }
 
-                        if (obstacle.y > screenHeight) {
-                            toRemove.add(obstacle)
-                            val start = SystemClock.elapsedRealtime()
-                            val success = AllClients.gameClient.incrementScore(
-                                gameId,
-                                username,
-                                System.currentTimeMillis()
-                            )
-                            val end = SystemClock.elapsedRealtime()
-                            if (success) {
-                                AllClients.logClient.logEvent(gameId, username, "score_updated", end - start)
+                            if (obstacle.y > screenHeight) {
+                                toRemove.add(obstacle)
+                                val start = SystemClock.elapsedRealtime()
+                                val success = AllClients.gameClient.incrementScore(
+                                    gameId,
+                                    username,
+                                    System.currentTimeMillis()
+                                )
+                                val end = SystemClock.elapsedRealtime()
+                                if (success) {
+                                    AllClients.logClient.logEvent(gameId, username, "score_updated", end - start)
+                                }
                             }
                         }
                     }
 
                     obstacles.removeAll(toRemove)
                 }
+
 
                 // Gegnerdaten regelmäßig abfragen
                 LaunchedEffect(gameId) {
@@ -187,9 +188,11 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                                 opponentScore.value = game.scoresMap[opponent] ?: 0
                                 playerScore = game.scoresMap[username] ?: 0
 
-                                if (game.status == "FINISHED" && game.winner != username) {
+                                val finishedPlayers = game.getFinishedPlayersList()
+                                if (opponent != null && finishedPlayers.contains(opponent)) {
                                     isOpponentGameOver.value = true
                                 }
+
                             } else {
                                 println("⚠ Game not found for gameId=$gameId during polling")
                             }
