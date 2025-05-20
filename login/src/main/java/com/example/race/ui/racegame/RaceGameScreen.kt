@@ -54,6 +54,8 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
     var allServerObstacles by remember { mutableStateOf<List<Obstacle>>(emptyList()) }
     var startAt by remember { mutableStateOf(0L) }
     val renderTick = remember { mutableStateOf(0L) }
+    var gameStartElapsed by remember { mutableStateOf(0L) }
+
 
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -79,7 +81,6 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 val countdownStartElapsed = SystemClock.elapsedRealtime() + (countdownStartAt - System.currentTimeMillis())
                 val startAtElapsed = SystemClock.elapsedRealtime() + (startAt - System.currentTimeMillis())
 
-                // Countdown (frame-synchron)
                 while (SystemClock.elapsedRealtime() < countdownStartElapsed) {
                     delay(1)
                 }
@@ -90,10 +91,11 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 }
                 countdown = null
 
-                // Warten bis Spiel starten darf
                 while (SystemClock.elapsedRealtime() < startAtElapsed) {
                     delay(1)
                 }
+
+                gameStartElapsed = SystemClock.elapsedRealtime()
 
                 println("Client $username startet bei ${System.currentTimeMillis()}, erwartet: $startAt, Differenz: ${System.currentTimeMillis() - startAt}")
                 isStarted = true
@@ -102,24 +104,27 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 AllClients.logClient.logEvent(gameId, username, "game_start", gameStartDelay)
 
                 val game = AllClients.gameClient.getGame(gameId)
+                println(" Game received: ${game?.gameId}, Obstacles: ${game?.obstaclesList?.size}")
+
                 allServerObstacles = game?.obstaclesList?.map {
+                    println("➡ Obstacle loaded: x=${it.x}, timestamp=${it.timestamp}")
                     Obstacle(x = it.x * screenWidth, y = -50f, timestamp = it.timestamp)
                 } ?: emptyList()
+
             }
 
 
-            if (isStarted) {
-                // Hindernisse vom Server synchronisiert anzeigen
-                LaunchedEffect(allServerObstacles, startAt) {
-                    for (obstacle in allServerObstacles.sortedBy { it.timestamp }) {
-                        val delayMs = obstacle.timestamp - startAt
-                        val elapsed = System.currentTimeMillis() - startAt
-                        val remaining = delayMs - elapsed
-                        if (remaining > 0) delay(remaining)
-                        obstacles.add(obstacle.copy(y = -50f))
-                    }
-                    println("Hindernisse vom Server empfangen: ${allServerObstacles.size}")
 
+            if (isStarted) {
+
+                LaunchedEffect(allServerObstacles) {
+                    for (obstacle in allServerObstacles.sortedBy { it.timestamp }) {
+                        val delayTime = obstacle.timestamp - System.currentTimeMillis()
+                        if (delayTime > 0) delay(delayTime)
+
+                        obstacles.add(obstacle.copy(y = -50f))
+                        println("[$username] Spawn obstacle at ${System.currentTimeMillis()}, scheduled at ${obstacle.timestamp}")
+                    }
                 }
 
                 // Spiel-Loop: Hindernisse bewegen, Score erhöhen
@@ -165,28 +170,40 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 // Gegnerdaten regelmäßig abfragen
                 LaunchedEffect(gameId) {
                     while (true) {
-                        val pollStart = SystemClock.elapsedRealtime()
-                        val game = AllClients.gameClient.getGame(gameId)
-                        val pollEnd = SystemClock.elapsedRealtime()
-                        opponentUpdateDelay = pollEnd - pollStart
-                        AllClients.logClient.logEvent(gameId, username, "opponent_update", opponentUpdateDelay)
+                        try {
+                            val pollStart = SystemClock.elapsedRealtime()
+                            val game = AllClients.gameClient.getGame(gameId)
+                            val pollEnd = SystemClock.elapsedRealtime()
 
-                        val opponent = when (username) {
-                            game?.playerA -> game.playerB
-                            game?.playerB -> game.playerA
-                            else -> null
-                        }
+                            opponentUpdateDelay = pollEnd - pollStart
+                            AllClients.logClient.logEvent(gameId, username, "opponent_update", opponentUpdateDelay)
 
-                        opponentScore.value = game?.scoresMap?.get(opponent) ?: 0
-                        playerScore = game?.scoresMap?.get(username) ?: 0
+                            if (game != null) {
+                                val opponent = when (username) {
+                                    game.playerA -> game.playerB
+                                    game.playerB -> game.playerA
+                                    else -> null
+                                }
 
-                        if (game?.status == "FINISHED" && game.winner != username) {
-                            isOpponentGameOver.value = true
+                                opponentScore.value = game.scoresMap[opponent] ?: 0
+                                playerScore = game.scoresMap[username] ?: 0
+
+                                if (game.status == "FINISHED" && game.winner != username) {
+                                    isOpponentGameOver.value = true
+                                }
+                            } else {
+                                println("⚠ Game not found for gameId=$gameId during polling")
+                            }
+
+                        } catch (e: Exception) {
+                            println(" Fehler beim Polling des Spiels: ${e.message}")
+                            e.printStackTrace()
                         }
 
                         delay(100)
                     }
                 }
+
             }
 
             ScrollingRaceTrack()
