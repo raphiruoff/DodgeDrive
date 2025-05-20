@@ -171,7 +171,8 @@ class GameService(
             if (!success) return false
 
             if (winner != "draw") {
-                scoreProducer.send(ScoreEvent(username = winner, score = updated.scores[winner] ?: 0))
+                scoreProducer.send(ScoreEvent(username = updated.playerA, score = scoreA))
+                scoreProducer.send(ScoreEvent(username = updated.playerB, score = scoreB))
             }
 
             gameLogProducer.send(

@@ -128,7 +128,6 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 }
 
                 // Spiel-Loop: Hindernisse bewegen, Score erhöhen
-
                 LaunchedEffect(Unit) {
                     while (true) {
                         renderTick.value = System.currentTimeMillis()
@@ -271,15 +270,23 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                     AllClients.gameClient.finishGame(gameId, username)
                     AllClients.logClient.exportLogs(gameId)
 
-                    val game = AllClients.gameClient.getGame(gameId)
-                    val winner = game?.winner
-
-                    gameResultMessage.value = when {
-                        winner == username -> "🏆 Du hast gewonnen!"
-                        winner == "draw" || winner.isNullOrEmpty() -> "🤝 Unentschieden"
-                        else -> "😢 Du hast verloren"
+                    // Warte auf finale Server-Auswertung
+                    while (true) {
+                        val game = AllClients.gameClient.getGame(gameId)
+                        if (game?.status == "FINISHED" && !game.winner.isNullOrEmpty()) {
+                            val winner = game.winner
+                            gameResultMessage.value = when {
+                                winner == username -> "🏆 Du hast gewonnen!"
+                                winner == "draw" -> "🤝 Unentschieden"
+                                else -> "😢 Du hast verloren"
+                            }
+                            break
+                        }
+                        delay(250)
                     }
                 }
+
+
 
 
                 Column(
