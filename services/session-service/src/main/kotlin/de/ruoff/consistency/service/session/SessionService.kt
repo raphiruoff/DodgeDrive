@@ -20,11 +20,10 @@ class SessionService(
 
     @Qualifier("invitationRedisTemplate")
     private val invitationRedisTemplate: RedisTemplate<String, InvitationModel>,
-    //private val gameLogProducer: GameLogProducer,
 
     private val invitationProducer: SessionProducer,
-    private val gameLogProducer: GameLogProducer
-
+    private val gameLogProducer: GameLogProducer,
+    private val gameClient: GameClient
 ) {
 
     fun createSession(playerA: String): GameSession {
@@ -59,7 +58,6 @@ class SessionService(
 
         return session
     }
-
 
     fun getSession(sessionId: String): GameSession? =
         sessionRedisTemplate.opsForValue().get("session:$sessionId") as? GameSession
@@ -103,7 +101,6 @@ class SessionService(
         return true
     }
 
-
     fun getInvitationsForPlayer(player: String): List<InvitationModel> =
         invitationRedisTemplate.opsForList().range("invite:$player", 0, -1) ?: emptyList()
 
@@ -137,17 +134,23 @@ class SessionService(
                 .withDescription("Session ist nicht im Status ACTIVE (aktuell: ${session.status}).")
                 .asRuntimeException()
 
+        // Erstelle Spiel zuerst via GameClient
+        val createdGameId = gameClient.createGame(
+            sessionId = session.sessionId,
+            playerA = session.playerA,
+            playerB = session.playerB!!
+        ) ?: throw Status.INTERNAL.withDescription("Spiel konnte nicht erstellt werden.").asRuntimeException()
+
         // Setze synchronen Startzeitpunkt
         val now = System.currentTimeMillis()
         val countdownBufferMs = 5000L
         session.startAt = now + countdownBufferMs
-
         session.status = SessionStatus.WAITING_FOR_START
         sessionRedisTemplate.opsForValue().set(key, session)
 
         gameLogProducer.send(
             GameLogEvent(
-                gameId = session.sessionId,
+                gameId = createdGameId,
                 username = session.playerA,
                 eventType = "game_start",
                 originTimestamp = now
@@ -155,7 +158,7 @@ class SessionService(
         )
         gameLogProducer.send(
             GameLogEvent(
-                gameId = session.sessionId,
+                gameId = createdGameId,
                 username = session.playerB!!,
                 eventType = "game_start",
                 originTimestamp = now
@@ -164,7 +167,6 @@ class SessionService(
 
         return true
     }
-
 
     private val invitationObservers = ConcurrentHashMap<String, MutableList<StreamObserver<Session.Invitation>>>()
 
@@ -182,5 +184,4 @@ class SessionService(
             )
         }
     }
-
 }

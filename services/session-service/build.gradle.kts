@@ -25,6 +25,10 @@ repositories {
 extra["springGrpcVersion"] = "0.3.0"
 
 dependencies {
+
+    implementation("org.springframework.grpc:spring-grpc-spring-boot-starter")
+    implementation("io.grpc:grpc-services")
+
     implementation(project(":services:event-models"))
     implementation("org.springframework.boot:spring-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
@@ -36,6 +40,29 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     implementation("javax.annotation:javax.annotation-api:1.3.2")
 
+    implementation(project(":services:event-models"))
+
+    // Spring
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    implementation("org.springframework.boot:spring-boot-starter")
+    runtimeOnly("org.postgresql:postgresql")
+
+    // gRPC
+    implementation("org.springframework.grpc:spring-grpc-spring-boot-starter")
+    implementation("io.grpc:grpc-services")
+
+    // JSON/Reflection
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
+
+    // Kafka
+    implementation("org.springframework.kafka:spring-kafka")
+    implementation("javax.annotation:javax.annotation-api:1.3.2")
+
+    // Tests
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+    testImplementation("org.springframework.grpc:spring-grpc-test")
 }
 
 dependencyManagement {

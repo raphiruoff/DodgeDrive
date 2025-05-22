@@ -21,8 +21,16 @@ class SessionStreamService {
             .setRequester(event.requester)
             .build()
 
-        invitationObservers[event.receiver]?.forEach {
-            it.onNext(invitation)
+        // Entferne alle Observer, bei denen onNext fehlschlägt (z. B. Client ist weg)
+        invitationObservers[event.receiver]?.removeIf { observer ->
+            try {
+                observer.onNext(invitation)
+                false
+            } catch (e: Exception) {
+                println(" StreamObserver für ${event.receiver} nicht erreichbar: ${e.message}")
+                true
+            }
         }
     }
+
 }

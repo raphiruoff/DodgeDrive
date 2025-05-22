@@ -5,10 +5,15 @@ import de.ruoff.consistency.service.session.SessionServiceGrpc
 import io.grpc.ClientInterceptors
 import io.grpc.stub.StreamObserver
 
+import de.ruoff.consistency.service.game.*
+
+
+
 class SessionClient : BaseClient(overridePort = 9101) {
 
     private val jwtInterceptor = JwtClientInterceptor { TokenHolder.jwtToken }
     private val interceptedChannel = ClientInterceptors.intercept(channel, jwtInterceptor)
+    private val gameStub = GameServiceGrpc.newBlockingStub(interceptedChannel)
 
     private val stub = SessionServiceGrpc.newBlockingStub(interceptedChannel)
     private val asyncStub = SessionServiceGrpc.newStub(interceptedChannel)
@@ -73,14 +78,18 @@ class SessionClient : BaseClient(overridePort = 9101) {
         return stub.acceptInvitation(request).success
     }
 
-    fun startGame(sessionId: String, username: String): Pair<Boolean, Long> {
+    fun startGame(sessionId: String, username: String): Triple<Boolean, Long, String> {
         val request = Session.StartGameRequest.newBuilder()
             .setSessionId(sessionId)
             .setUsername(username)
             .build()
+
         val response = stub.startGame(request)
-        return Pair(response.success, response.startAt)
+        return Triple(response.success, response.startAt, response.gameId)
     }
+
+
+
 
 
     fun streamInvitations(
