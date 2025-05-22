@@ -55,6 +55,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
     var startAt by remember { mutableStateOf(0L) }
     val renderTick = remember { mutableStateOf(0L) }
     var gameStartElapsed by remember { mutableStateOf(0L) }
+    val previousOpponentScore = remember { mutableStateOf(0) }
 
 
 
@@ -71,10 +72,26 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
             val lowerY = screenHeight * 3f / 4f
 
             LaunchedEffect(Unit) {
+                AllClients.logClient.logEventWithTimestamp(
+                    gameId = gameId,
+                    username = username,
+                    eventType = "debug_start_marker",
+                    originTimestamp = 1747777777000L
+                )
+
                 carState.value = CarState(carX = centerX, carY = lowerY, angle = 0f)
 
                 val session = AllClients.sessionClient.getSession(gameId)
-                startAt = session?.startAt ?: 0L
+
+                if (username == session?.playerA) {
+                    AllClients.sessionClient.startGame(gameId, username)
+                    // Re-fetch to ensure updated startAt after startGame
+                    val updatedSession = AllClients.sessionClient.getSession(gameId)
+                    startAt = updatedSession?.startAt ?: 0L
+                } else {
+                    startAt = session?.startAt ?: 0L
+                }
+
                 println("🕒 Server startAt: $startAt")
 
                 val countdownStartAt = startAt - 3000L
@@ -98,10 +115,32 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 gameStartElapsed = SystemClock.elapsedRealtime()
 
                 println("Client $username startet bei ${System.currentTimeMillis()}, erwartet: $startAt, Differenz: ${System.currentTimeMillis() - startAt}")
-                isStarted = true
 
+// Logge tatsächlichen Start mit synchronisiertem Startzeitpunkt (originTimestamp = startAt)
+                println("📤 Sende Event: game_start mit origin=$startAt")
+                AllClients.logClient.logEventWithTimestamp(
+                    gameId = gameId,
+                    username = username,
+                    eventType = "game_start",
+                    originTimestamp = startAt
+                )
+
+                isStarted = true
                 gameStartDelay = SystemClock.elapsedRealtime() - gameStartTime
-                AllClients.logClient.logEvent(gameId, username, "game_start", gameStartDelay)
+
+
+                println("📤 Logging obstacle")
+
+                // Bei erstem Hindernis-Spawn
+                if (obstacles.isEmpty()) {
+                    AllClients.logClient.logEventWithTimestamp(gameId, username, "first_obstacle_check", System.currentTimeMillis())
+                }
+                println("📤 Logging oponent_score")
+
+                // Beim ersten gegnerischen Score-Update
+                if (previousOpponentScore.value == 0 && opponentScore.value > 0)
+                    AllClients.logClient.logEventWithDelay(gameId, username, "opponent_score_visible", System.currentTimeMillis())
+
 
                 val game = AllClients.gameClient.getGame(gameId)
                 println(" Game received: ${game?.gameId}, Obstacles: ${game?.obstaclesList?.size}")
@@ -118,14 +157,22 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
             if (isStarted) {
 
                 LaunchedEffect(allServerObstacles) {
+                    var firstSpawned = false
                     for (obstacle in allServerObstacles.sortedBy { it.timestamp }) {
                         val delayTime = obstacle.timestamp - System.currentTimeMillis()
                         if (delayTime > 0) delay(delayTime)
 
                         obstacles.add(obstacle.copy(y = -50f))
+
+                        if (!firstSpawned) {
+                            AllClients.logClient.logEventWithTimestamp(gameId, username, "obstacle_spawned", System.currentTimeMillis())
+                            firstSpawned = true
+                        }
+
                         println("[$username] Spawn obstacle at ${System.currentTimeMillis()}, scheduled at ${obstacle.timestamp}")
                     }
                 }
+
 
                 // Spiel-Loop: Hindernisse bewegen, Score erhöhen
                 LaunchedEffect(Unit) {
@@ -157,7 +204,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                                 )
                                 val end = SystemClock.elapsedRealtime()
                                 if (success) {
-                                    AllClients.logClient.logEvent(gameId, username, "score_updated", end - start)
+                                    AllClients.logClient.logEventWithDelay(gameId, username, "score_updated", end - start)
                                 }
                             }
                         }
@@ -176,7 +223,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                             val pollEnd = SystemClock.elapsedRealtime()
 
                             opponentUpdateDelay = pollEnd - pollStart
-                            AllClients.logClient.logEvent(gameId, username, "opponent_update", opponentUpdateDelay)
+                            AllClients.logClient.logEventWithDelay(gameId, username, "opponent_update", opponentUpdateDelay)
 
                             if (game != null) {
                                 val opponent = when (username) {
@@ -185,7 +232,13 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                                     else -> null
                                 }
 
-                                opponentScore.value = game.scoresMap[opponent] ?: 0
+                                val currentOpponentScore = game.scoresMap[opponent] ?: 0
+                                if (previousOpponentScore.value == 0 && currentOpponentScore > 0) {
+                                    AllClients.logClient.logEventWithTimestamp(gameId, username, "opponent_score_visible", System.currentTimeMillis())
+                                }
+                                previousOpponentScore.value = currentOpponentScore
+
+                                opponentScore.value = currentOpponentScore
                                 playerScore = game.scoresMap[username] ?: 0
 
                                 val finishedPlayers = game.getFinishedPlayersList()

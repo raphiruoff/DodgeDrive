@@ -13,6 +13,7 @@ message LogEventRequest {
     string username = 2;
     string eventType = 3;
     int64 delayMs = 4;
+    int64 originTimestamp = 5;
 }
 
 message LogEventResponse {

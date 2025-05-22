@@ -11,5 +11,6 @@ data class LogModel(
     val timestamp: Instant,
     val username: String,
     val eventType: String,
-    val delayMs: Long
+    val delayMs: Long,
+    val originTimestamp: Instant? = null
 )

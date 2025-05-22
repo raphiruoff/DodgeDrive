@@ -4,6 +4,6 @@ data class GameLogEvent(
     val gameId: String,
     val username: String,
     val eventType: String,
-    val originTimestamp: Long,
+    val originTimestamp: Long?,
     val isWinner: Boolean = false
 )

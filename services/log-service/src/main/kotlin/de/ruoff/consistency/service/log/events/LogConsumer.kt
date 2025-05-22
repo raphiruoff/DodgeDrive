@@ -17,25 +17,33 @@ class LogConsumer(
     )
     fun consume(event: GameLogEvent) {
         println("📥 Received GameLogEvent: $event")
+        println("📥 Empfangener Event: $event → gespeichert in Mongo? ${event.eventType}")
+
+        if (event.eventType == "debug_start_marker") {
+            println("✅ ✅ DEBUG START MARKER empfangen – origin=${event.originTimestamp}")
+        }
 
         val now = System.currentTimeMillis()
-        val delay = now - event.originTimestamp
+        val origin = event.originTimestamp ?: 0L
+        val delay = now - origin
 
         logService.saveLog(
             gameId = event.gameId,
             username = event.username,
             eventType = event.eventType,
-            delayMs = delay
+            delayMs = delay,
+            originTimestamp = origin
         )
-//        if (event.eventType == "game_finished" && event.isWinner) {
-        if (event.eventType == "game_finished" ) {
+
+        if (event.eventType == "game_finished") {
             println("🏁 Gewinner ${event.username} triggert Log-Export für ${event.gameId}")
             Thread.sleep(1000)
             logService.exportLogsToCsv(event.gameId)
-        } else if (event.eventType == "game_finished") {
-            println("⏭️ Kein Export: ${event.username} ist nicht der Gewinner.")
         }
-
     }
+
+
+
+
 }
 

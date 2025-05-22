@@ -12,10 +12,12 @@ class GameClient : BaseClient(overridePort = 9093) {
 
     fun createGame(sessionId: String, playerA: String, playerB: String): String? {
         return try {
+            val now = System.currentTimeMillis()
             val request = CreateGameRequest.newBuilder()
                 .setSessionId(sessionId)
                 .setPlayerA(playerA)
                 .setPlayerB(playerB)
+                .setOriginTimestamp(now)
                 .build()
             val response = stub.createGame(request)
             response.gameId
@@ -24,6 +26,7 @@ class GameClient : BaseClient(overridePort = 9093) {
             null
         }
     }
+
 
     fun getGame(gameId: String): GetGameResponse? {
         return try {
