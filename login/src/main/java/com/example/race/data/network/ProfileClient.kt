@@ -1,6 +1,8 @@
 package com.example.race.data.network
 
 
+import de.ruoff.consistency.service.profile.Profile
+import de.ruoff.consistency.service.profile.ProfileServiceGrpc
 import io.grpc.ClientInterceptors
 
 class ProfileClient : BaseClient(overridePort = 9095) {

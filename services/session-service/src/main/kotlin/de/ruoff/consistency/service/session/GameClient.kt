@@ -2,6 +2,8 @@ package de.ruoff.consistency.service.session
 
 import de.ruoff.consistency.service.game.GameServiceGrpc
 import de.ruoff.consistency.service.game.CreateGameRequest
+import de.ruoff.consistency.service.game.GetGameRequest
+import de.ruoff.consistency.service.game.GetGameResponse
 import io.grpc.ManagedChannelBuilder
 import org.springframework.stereotype.Component
 
@@ -9,7 +11,7 @@ import org.springframework.stereotype.Component
 class GameClient {
 
     private val channel = ManagedChannelBuilder
-        .forAddress("game-service", 9093) // Port je nach Docker Compose / Service Name
+        .forAddress("game-service", 9093)
         .usePlaintext()
         .build()
 
@@ -31,4 +33,18 @@ class GameClient {
             null
         }
     }
+
+    fun getGame(gameId: String): GetGameResponse? {
+        return try {
+            val request = GetGameRequest.newBuilder()
+                .setGameId(gameId)
+                .build()
+            stub.getGame(request)
+        } catch (e: Exception) {
+            println("⚠ Fehler beim Abrufen des Spiels: ${e.message}")
+            null
+        }
+    }
+
 }
+

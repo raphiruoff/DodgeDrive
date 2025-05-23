@@ -6,7 +6,7 @@ import io.grpc.ClientInterceptors
 import io.grpc.stub.StreamObserver
 
 import de.ruoff.consistency.service.game.*
-
+import de.ruoff.consistency.service.session.Session.StartGameRequest
 
 
 class SessionClient : BaseClient(overridePort = 9101) {
@@ -78,14 +78,18 @@ class SessionClient : BaseClient(overridePort = 9101) {
         return stub.acceptInvitation(request).success
     }
 
-    fun startGame(sessionId: String, username: String): Triple<Boolean, Long, String> {
-        val request = Session.StartGameRequest.newBuilder()
+    fun triggerGameStart(sessionId: String, username: String): Triple<Boolean, Long, String> {
+        val request = StartGameRequest.newBuilder()
             .setSessionId(sessionId)
             .setUsername(username)
             .build()
 
-        val response = stub.startGame(request)
-        return Triple(response.success, response.startAt, response.gameId)
+        return try {
+            val response = stub.triggerGameStart(request)
+            Triple(response.success, response.startAt, response.gameId)
+        } catch (e: Exception) {
+            Triple(false, 0L, "")
+        }
     }
 
 

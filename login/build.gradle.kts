@@ -53,6 +53,14 @@ android {
 }
 
 dependencies {
+    implementation("com.github.NaikSoftware:StompProtocolAndroid:1.6.6")
+    implementation("io.reactivex.rxjava2:rxjava:2.2.21")
+
+    implementation("org.java-websocket:Java-WebSocket:1.5.3")
+    implementation("com.google.code.gson:gson:2.10.1")
+
+    implementation(project(":services:event-models"))
+
     // gRPC Abhängigkeiten für Android-Client
     implementation("io.grpc:grpc-okhttp:1.58.0")
     implementation("io.grpc:grpc-protobuf:1.58.0")

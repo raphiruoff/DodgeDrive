@@ -49,7 +49,6 @@ class SessionController(
             .setPlayerA(session?.playerA ?: "")
             .setPlayerB(session?.playerB ?: "")
             .setStatus(session?.status?.name ?: "")
-            .setStartAt(session?.startAt ?: 0L)
             .build()
         responseObserver.onNext(response)
         responseObserver.onCompleted()
@@ -69,7 +68,6 @@ class SessionController(
             .setPlayerA(session?.playerA ?: "")
             .setPlayerB(session?.playerB ?: "")
             .setStatus(session?.status?.name ?: "")
-            .setStartAt(session?.startAt ?: 0L)
             .build()
         responseObserver.onNext(response)
         responseObserver.onCompleted()
@@ -119,21 +117,26 @@ class SessionController(
         responseObserver.onCompleted()
     }
 
-    override fun startGame(
+    override fun triggerGameStart(
         request: Session.StartGameRequest,
         responseObserver: StreamObserver<Session.StartGameResponse>
     ) {
-        val success = sessionService.startGame(request.sessionId, request.username)
-        val session = sessionService.getSession(request.sessionId)
+        try {
+            val (gameId, startAt) = sessionService.triggerGameStart(request.sessionId, request.username)
 
-        val response = Session.StartGameResponse.newBuilder()
-            .setSuccess(success)
-            .setStartAt(session?.startAt ?: 0L)
-            .build()
+            val response = Session.StartGameResponse.newBuilder()
+                .setSuccess(true)
+                .setGameId(gameId)
+                .setStartAt(startAt)
+                .build()
 
-        responseObserver.onNext(response)
-        responseObserver.onCompleted()
+            responseObserver.onNext(response)
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            responseObserver.onError(e)
+        }
     }
+
 
 
     override fun streamInvitations(

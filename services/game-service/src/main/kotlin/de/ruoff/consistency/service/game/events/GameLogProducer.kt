@@ -6,10 +6,10 @@ import org.springframework.stereotype.Service
 
 @Service
 class GameLogProducer(
-    private val kafkaTemplate: KafkaTemplate<String, GameLogEvent>
+    private val gameLogKafkaTemplate: KafkaTemplate<String, GameLogEvent>
 ) {
     fun send(event: GameLogEvent) {
-        println(" Logging Game Event: $event")
-        kafkaTemplate.send("game-log-topic", event.username, event)
+        println("📤 Logging Game Event: $event")
+        gameLogKafkaTemplate.send("game-log-topic", event.username, event)
     }
 }

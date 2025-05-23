@@ -12,6 +12,7 @@ import com.example.race.data.network.FriendClient
 import com.example.race.data.network.ProfileClient
 import com.example.race.data.network.TokenHolder
 import de.ruoff.consistency.service.friends.Friends.FriendRequest
+import de.ruoff.consistency.service.profile.Profile
 import io.grpc.stub.StreamObserver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

@@ -112,7 +112,7 @@ class SessionService(
         false
     }
 
-    fun startGame(sessionId: String, username: String): Boolean {
+    fun triggerGameStart(sessionId: String, username: String): Pair<String, Long> {
         val key = "session:$sessionId"
         val session = sessionRedisTemplate.opsForValue().get(key)
             ?: throw Status.NOT_FOUND
@@ -134,39 +134,18 @@ class SessionService(
                 .withDescription("Session ist nicht im Status ACTIVE (aktuell: ${session.status}).")
                 .asRuntimeException()
 
-        // Erstelle Spiel zuerst via GameClient
-        val createdGameId = gameClient.createGame(
-            sessionId = session.sessionId,
-            playerA = session.playerA,
-            playerB = session.playerB!!
-        ) ?: throw Status.INTERNAL.withDescription("Spiel konnte nicht erstellt werden.").asRuntimeException()
+        val gameId = gameClient.createGame(session.sessionId, session.playerA, session.playerB!!)
+            ?: throw Status.INTERNAL.withDescription("Spiel konnte nicht erstellt werden.").asRuntimeException()
 
-        // Setze synchronen Startzeitpunkt
-        val now = System.currentTimeMillis()
-        val countdownBufferMs = 5000L
-        session.startAt = now + countdownBufferMs
+        val game = gameClient.getGame(gameId)
+            ?: throw Status.INTERNAL.withDescription("Spiel konnte nicht geladen werden.").asRuntimeException()
+
         session.status = SessionStatus.WAITING_FOR_START
         sessionRedisTemplate.opsForValue().set(key, session)
 
-        gameLogProducer.send(
-            GameLogEvent(
-                gameId = createdGameId,
-                username = session.playerA,
-                eventType = "game_start",
-                originTimestamp = now
-            )
-        )
-        gameLogProducer.send(
-            GameLogEvent(
-                gameId = createdGameId,
-                username = session.playerB!!,
-                eventType = "game_start",
-                originTimestamp = now
-            )
-        )
-
-        return true
+        return Pair(gameId, game.startAt)
     }
+
 
     private val invitationObservers = ConcurrentHashMap<String, MutableList<StreamObserver<Session.Invitation>>>()
 

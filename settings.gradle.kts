@@ -3,6 +3,7 @@ pluginManagement {
         gradlePluginPortal()
         google()
         mavenCentral()
+        maven(url = "https://jitpack.io")
     }
 }
 
@@ -11,6 +12,7 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven(url = "https://jitpack.io")
     }
 }
 
@@ -24,7 +26,7 @@ include(":services:profile-service")
 include(":services:auth-service")
 include(":services:friends-service")
 include(":services:log-service")
-
+include(":services:websocket-service")
 
 
 

@@ -46,12 +46,12 @@ message GetGameResponse {
     string status = 5;
     string winner = 6;
     map<string, int32> scores = 7;
-    string startTime = 8;
-    string endTime = 9;
+    int64 startAt = 8;
+    int64 endTime = 9;
     repeated Obstacle obstacles = 10;
     repeated string finishedPlayers = 11;
-
 }
+
 
 message UpdateScoreRequest {
     string gameId = 1;
@@ -86,7 +86,11 @@ message IncrementScoreResponse {
 message StartGameRequest {
     string sessionId = 1;
     string username = 2;
+    string playerA = 3;
+    string playerB = 4;
+    int64 originTimestamp = 5;
 }
+
 
 message StartGameResponse {
     bool success = 1;

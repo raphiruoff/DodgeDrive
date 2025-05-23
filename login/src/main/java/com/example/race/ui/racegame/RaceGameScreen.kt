@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.login.R
 import com.example.race.data.network.AllClients
+import com.example.race.data.network.WebSocketManager
 import com.example.race.navigation.Routes
 import com.example.race.ui.racegame.components.Car
 import com.example.race.ui.racegame.components.Obstacle
@@ -51,7 +52,6 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
 
     var isStarted by remember { mutableStateOf(false) }
     var countdown by remember { mutableStateOf<Int?>(null) }
-    var allServerObstacles by remember { mutableStateOf<List<Obstacle>>(emptyList()) }
     var startAt by remember { mutableStateOf(0L) }
     val renderTick = remember { mutableStateOf(0L) }
     var gameStartElapsed by remember { mutableStateOf(0L) }
@@ -60,7 +60,9 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
 
 
     Column(modifier = Modifier.fillMaxSize()) {
-        BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth()) {
+        BoxWithConstraints(modifier = Modifier
+            .weight(1f)
+            .fillMaxWidth()) {
             val screenWidth = constraints.maxWidth
             val screenHeight = constraints.maxHeight
             val carWidth = 48f
@@ -72,31 +74,28 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
             val lowerY = screenHeight * 3f / 4f
 
             LaunchedEffect(Unit) {
-                AllClients.logClient.logEventWithTimestamp(
-                    gameId = gameId,
-                    username = username,
-                    eventType = "debug_start_marker",
-                    originTimestamp = 1747777777000L
-                )
-
                 carState.value = CarState(carX = centerX, carY = lowerY, angle = 0f)
 
                 val session = AllClients.sessionClient.getSession(gameId)
+                val isPlayerA = username == session?.playerA
 
-                if (username == session?.playerA) {
-                    AllClients.sessionClient.startGame(gameId, username)
-                    // Re-fetch to ensure updated startAt after startGame
-                    val updatedSession = AllClients.sessionClient.getSession(gameId)
-                    startAt = updatedSession?.startAt ?: 0L
+                val gameResponse = if (isPlayerA) {
+                    val (success, _, _) = AllClients.gameClient.startGame(gameId, username) //TODO:
+                    if (!success) {
+                        println("⚠️ Spielstart fehlgeschlagen")
+                        return@LaunchedEffect
+                    }
+                    AllClients.gameClient.getGameBySession(gameId)
                 } else {
-                    startAt = session?.startAt ?: 0L
+                    AllClients.gameClient.getGameBySession(gameId)
                 }
 
-                println("🕒 Server startAt: $startAt")
+                startAt = gameResponse?.startAt ?: 0L
+                println("🕒 Server startAt (gültig für beide Spieler): $startAt")
 
-                val countdownStartAt = startAt - 3000L
-                val countdownStartElapsed = SystemClock.elapsedRealtime() + (countdownStartAt - System.currentTimeMillis())
-                val startAtElapsed = SystemClock.elapsedRealtime() + (startAt - System.currentTimeMillis())
+                val countdownTarget = startAt - 3000L
+                val countdownStartElapsed = SystemClock.elapsedRealtime() + (countdownTarget - System.currentTimeMillis())
+                val gameStartElapsedTarget = SystemClock.elapsedRealtime() + (startAt - System.currentTimeMillis())
 
                 while (SystemClock.elapsedRealtime() < countdownStartElapsed) {
                     delay(1)
@@ -108,16 +107,16 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 }
                 countdown = null
 
-                while (SystemClock.elapsedRealtime() < startAtElapsed) {
+                while (SystemClock.elapsedRealtime() < gameStartElapsedTarget) {
                     delay(1)
                 }
 
                 gameStartElapsed = SystemClock.elapsedRealtime()
 
-                println("Client $username startet bei ${System.currentTimeMillis()}, erwartet: $startAt, Differenz: ${System.currentTimeMillis() - startAt}")
+                val now = System.currentTimeMillis()
+                val diff = now - startAt
+                println("🚦 Spieler $username startet lokal um $now (server startAt: $startAt, Differenz: ${diff}ms)")
 
-// Logge tatsächlichen Start mit synchronisiertem Startzeitpunkt (originTimestamp = startAt)
-                println("📤 Sende Event: game_start mit origin=$startAt")
                 AllClients.logClient.logEventWithTimestamp(
                     gameId = gameId,
                     username = username,
@@ -127,52 +126,11 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
 
                 isStarted = true
                 gameStartDelay = SystemClock.elapsedRealtime() - gameStartTime
-
-
-                println("📤 Logging obstacle")
-
-                // Bei erstem Hindernis-Spawn
-                if (obstacles.isEmpty()) {
-                    AllClients.logClient.logEventWithTimestamp(gameId, username, "first_obstacle_check", System.currentTimeMillis())
-                }
-                println("📤 Logging oponent_score")
-
-                // Beim ersten gegnerischen Score-Update
-                if (previousOpponentScore.value == 0 && opponentScore.value > 0)
-                    AllClients.logClient.logEventWithDelay(gameId, username, "opponent_score_visible", System.currentTimeMillis())
-
-
-                val game = AllClients.gameClient.getGame(gameId)
-                println(" Game received: ${game?.gameId}, Obstacles: ${game?.obstaclesList?.size}")
-
-                allServerObstacles = game?.obstaclesList?.map {
-                    println("➡ Obstacle loaded: x=${it.x}, timestamp=${it.timestamp}")
-                    Obstacle(x = it.x * screenWidth, y = -50f, timestamp = it.timestamp)
-                } ?: emptyList()
-
             }
 
 
 
             if (isStarted) {
-
-                LaunchedEffect(allServerObstacles) {
-                    var firstSpawned = false
-                    for (obstacle in allServerObstacles.sortedBy { it.timestamp }) {
-                        val delayTime = obstacle.timestamp - System.currentTimeMillis()
-                        if (delayTime > 0) delay(delayTime)
-
-                        obstacles.add(obstacle.copy(y = -50f))
-
-                        if (!firstSpawned) {
-                            AllClients.logClient.logEventWithTimestamp(gameId, username, "obstacle_spawned", System.currentTimeMillis())
-                            firstSpawned = true
-                        }
-
-                        println("[$username] Spawn obstacle at ${System.currentTimeMillis()}, scheduled at ${obstacle.timestamp}")
-                    }
-                }
-
 
                 // Spiel-Loop: Hindernisse bewegen, Score erhöhen
                 LaunchedEffect(Unit) {
@@ -204,7 +162,12 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                                 )
                                 val end = SystemClock.elapsedRealtime()
                                 if (success) {
-                                    AllClients.logClient.logEventWithDelay(gameId, username, "score_updated", end - start)
+                                    AllClients.logClient.logEventWithDelay(
+                                        gameId,
+                                        username,
+                                        "score_updated",
+                                        end - start
+                                    )
                                 }
                             }
                         }
@@ -215,49 +178,33 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
 
 
                 // Gegnerdaten regelmäßig abfragen
-                LaunchedEffect(gameId) {
-                    while (true) {
-                        try {
-                            val pollStart = SystemClock.elapsedRealtime()
-                            val game = AllClients.gameClient.getGame(gameId)
-                            val pollEnd = SystemClock.elapsedRealtime()
+                LaunchedEffect(Unit) {
+                    WebSocketManager.connect(
+                        gameId = gameId,
+                        onObstacle = { event ->
+                            obstacles.add(
+                                Obstacle(
+                                    x = event.x * screenWidth,
+                                    y = -50f,
+                                    timestamp = event.timestamp
+                                )
+                            )
+                        },
+                        onScore = { event ->
+                            if (event.username != username) {
+                                opponentScore.value = event.newScore
+                                previousOpponentScore.value = event.newScore
 
-                            opponentUpdateDelay = pollEnd - pollStart
-                            AllClients.logClient.logEventWithDelay(gameId, username, "opponent_update", opponentUpdateDelay)
-
-                            if (game != null) {
-                                val opponent = when (username) {
-                                    game.playerA -> game.playerB
-                                    game.playerB -> game.playerA
-                                    else -> null
+                                if (previousOpponentScore.value == 0 && event.newScore > 0) {
+                                    AllClients.logClient.logEventWithTimestamp(
+                                        gameId, username, "opponent_score_visible", System.currentTimeMillis()
+                                    )
                                 }
-
-                                val currentOpponentScore = game.scoresMap[opponent] ?: 0
-                                if (previousOpponentScore.value == 0 && currentOpponentScore > 0) {
-                                    AllClients.logClient.logEventWithTimestamp(gameId, username, "opponent_score_visible", System.currentTimeMillis())
-                                }
-                                previousOpponentScore.value = currentOpponentScore
-
-                                opponentScore.value = currentOpponentScore
-                                playerScore = game.scoresMap[username] ?: 0
-
-                                val finishedPlayers = game.getFinishedPlayersList()
-                                if (opponent != null && finishedPlayers.contains(opponent)) {
-                                    isOpponentGameOver.value = true
-                                }
-
-                            } else {
-                                println("⚠ Game not found for gameId=$gameId during polling")
                             }
-
-                        } catch (e: Exception) {
-                            println(" Fehler beim Polling des Spiels: ${e.message}")
-                            e.printStackTrace()
                         }
-
-                        delay(100)
-                    }
+                    )
                 }
+
 
             }
 
@@ -290,7 +237,9 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 "Score: $playerScore",
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.align(Alignment.TopEnd).padding(16.dp),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp),
                 color = Color.White
             )
 
@@ -298,24 +247,34 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 "Gegner: ${opponentScore.value}" + if (isOpponentGameOver.value) " ❌" else "",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.align(Alignment.TopStart).padding(16.dp),
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(16.dp),
                 color = if (isOpponentGameOver.value) Color.Red else Color.Yellow
             )
 
             if (isStarted && !isGameOver.value) {
                 Row(
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 24.dp),
                     horizontalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
                     Button(onClick = {
                         carState.value = carState.value.copy(
-                            carX = (carState.value.carX - moveStep).coerceIn(streetLeft, streetRight)
+                            carX = (carState.value.carX - moveStep).coerceIn(
+                                streetLeft,
+                                streetRight
+                            )
                         )
                     }) { Text("⬅️ Links") }
 
                     Button(onClick = {
                         carState.value = carState.value.copy(
-                            carX = (carState.value.carX + moveStep).coerceIn(streetLeft, streetRight)
+                            carX = (carState.value.carX + moveStep).coerceIn(
+                                streetLeft,
+                                streetRight
+                            )
                         )
                     }) { Text("➡️ Rechts") }
                 }
@@ -346,7 +305,9 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
 
 
                 Column(
-                    modifier = Modifier.fillMaxSize().background(Color(0x99000000)),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0x99000000)),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {

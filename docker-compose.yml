@@ -147,6 +147,14 @@ services:
 
 
 
+  websocket-service:
+    build: ./services/websocket-service
+    ports:
+      - "8080:8080"
+    depends_on:
+      - kafka
+    environment:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
 
 
 

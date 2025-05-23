@@ -1,7 +1,10 @@
 package de.ruoff.consistency.service.game
 
 import de.ruoff.consistency.events.GameLogEvent
+import de.ruoff.consistency.events.ObstacleSpawnedEvent
 import de.ruoff.consistency.events.ScoreEvent
+import de.ruoff.consistency.events.ScoreUpdateEvent
+import de.ruoff.consistency.service.game.events.GameEventProducer
 import de.ruoff.consistency.service.game.events.GameLogProducer
 import de.ruoff.consistency.service.game.events.ScoreProducer
 import org.springframework.stereotype.Service
@@ -12,7 +15,8 @@ class GameService(
     private val gameRepository: GameRepository,
     private val scoreProducer: ScoreProducer,
     private val gameLogProducer: GameLogProducer,
-    private val redisLockService: RedisLockService
+    private val redisLockService: RedisLockService,
+    private val gameEventProducer: GameEventProducer
 ) {
 
     fun createGame(
@@ -74,6 +78,8 @@ class GameService(
             redisLockService.releaseLock(lockKey)
         }
     }
+
+
 
 
 
@@ -143,7 +149,14 @@ class GameService(
                 )
             )
         }
-
+        gameEventProducer.sendScoreUpdate(
+            ScoreUpdateEvent(
+                gameId = gameId,
+                username = player,
+                newScore = newScore,
+                timestamp = System.currentTimeMillis()
+            )
+        )
         return true
     }
 
@@ -190,9 +203,24 @@ class GameService(
     }
 
 
+    fun startGame(gameId: String): Boolean {
+        val game = gameRepository.findById(gameId) ?: return false
 
+        val updatedStartAt = System.currentTimeMillis() + 3000L
+        game.startAt = updatedStartAt
+        gameRepository.save(game)
 
+        // Optional: GameLogEvent senden
+        gameLogProducer.send(
+            GameLogEvent(
+                gameId = gameId,
+                username = game.playerA,
+                eventType = "game_start",
+                originTimestamp = System.currentTimeMillis()
+            )
+        )
 
-
+        return true
+    }
 
 }

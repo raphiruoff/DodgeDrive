@@ -92,26 +92,19 @@ fun SessionScreen(
                     }
 
                     if (session.status == "WAITING_FOR_START") {
-                        val gameId = withContext(Dispatchers.IO) {
-                            val existing = GameClient().getGameBySession(safeSessionId)?.gameId
-                            if (existing != null) {
-                                existing
-                            } else if (session.playerA == safeUsername) {
-                                // Nur Spieler A darf das Spiel erzeugen
-                                GameClient().createGame(safeSessionId, safeUsername, sessionPartner ?: "")
-                            } else {
-                                // Spieler B wartet und probiert später nochmal
-                                null
-                            }
+                        val game = withContext(Dispatchers.IO) {
+                            GameClient().getGameBySession(safeSessionId)
                         }
 
-                        if (!gameId.isNullOrBlank()) {
-                            onNavigateToRaceGame(gameId, safeUsername)
+                        if (game != null && game.gameId.isNotBlank()) {
+                            onNavigateToRaceGame(game.gameId, safeUsername)
                             break
                         } else {
                             infoMessage = "⏳ Warte auf Spielinitialisierung..."
                         }
                     }
+
+
                 }
             }
         }
@@ -246,8 +239,8 @@ fun SessionScreen(
                     val safeSessionId = sessionId
                     val safeUsername = username
                     if (safeSessionId != null && safeUsername != null && sessionStatus == "ACTIVE") {
-                        val (success, _) = withContext(Dispatchers.IO) {
-                            sessionClient.startGame(safeSessionId, safeUsername)
+                        val (success, _, _) = withContext(Dispatchers.IO) {
+                            sessionClient.triggerGameStart(safeSessionId, safeUsername)
                         }
                         if (!success) {
                             infoMessage = "Spielstart fehlgeschlagen"
@@ -262,6 +255,7 @@ fun SessionScreen(
         ) {
             Text("🚗 Spiel starten")
         }
+
 
         Button(onClick = onNavigateBack, modifier = Modifier.fillMaxWidth()) {
             Text("⬅️ Zurück")

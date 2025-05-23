@@ -43,6 +43,38 @@ class GameController(
         }
     }
 
+    override fun startGame(
+        request: StartGameRequest,
+        responseObserver: StreamObserver<StartGameResponse>
+    ) {
+        try {
+            val game = gameService.getGameBySession(request.sessionId)
+                ?: throw IllegalArgumentException("Kein Spiel für Session ${request.sessionId} gefunden")
+
+            gameService.startGame(game.gameId)
+
+            val updatedGame = gameService.getGame(game.gameId)
+                ?: throw IllegalStateException("Spiel konnte nach Start nicht geladen werden")
+
+            val response = StartGameResponse.newBuilder()
+                .setSuccess(true)
+                .setStartAt(updatedGame.startAt)
+                .setGameId(updatedGame.gameId)
+                .build()
+
+            responseObserver.onNext(response)
+            responseObserver.onCompleted()
+        } catch (e: Exception) {
+            responseObserver.onError(
+                Status.INTERNAL
+                    .withDescription("Fehler beim Starten des Spiels: ${e.message}")
+                    .withCause(e)
+                    .asRuntimeException()
+            )
+        }
+    }
+
+
     override fun getGame(
         request: GetGameRequest,
         responseObserver: StreamObserver<GetGameResponse>

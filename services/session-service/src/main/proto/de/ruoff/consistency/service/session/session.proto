@@ -11,7 +11,7 @@ service SessionService {
     rpc InvitePlayer (InvitePlayerRequest) returns (InvitePlayerResponse);
     rpc GetInvitations (PlayerRequest) returns (GetInvitationsResponse);
     rpc AcceptInvitation (AcceptInvitationRequest) returns (AcceptInvitationResponse);
-    rpc StartGame(StartGameRequest) returns (StartGameResponse);
+    rpc TriggerGameStart(StartGameRequest) returns (StartGameResponse);
     rpc StreamInvitations (PlayerRequest) returns (stream Invitation);
 
 }
@@ -42,7 +42,6 @@ message GetSessionResponse {
     string playerA = 2;
     string playerB = 3;
     string status = 4;
-    int64 startAt = 5;
 }
 
 
@@ -91,9 +90,11 @@ message StartGameRequest {
     string username = 2;
 }
 
+
 message StartGameResponse {
     bool success = 1;
     int64 startAt = 2;
+    string gameId = 3;
 }
 
 

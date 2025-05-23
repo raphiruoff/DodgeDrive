@@ -21,36 +21,46 @@ class LogController(
         request: LogEventRequest,
         responseObserver: StreamObserver<LogEventResponse>
     ) {
-        val origin = if (request.originTimestamp > 0) request.originTimestamp else System.currentTimeMillis()
+        try {
+            val origin = if (request.originTimestamp > 0) request.originTimestamp else System.currentTimeMillis()
 
-        val kafkaEvent = GameLogEvent(
-            gameId = request.gameId,
-            username = request.username,
-            eventType = request.eventType,
-            originTimestamp = origin,
-            isWinner = false
-        )
-        println("📤 Sende an Kafka: $kafkaEvent")
+            val kafkaEvent = GameLogEvent(
+                gameId = request.gameId,
+                username = request.username,
+                eventType = request.eventType,
+                originTimestamp = origin,
+                isWinner = false
+            )
 
-        // Sende an Kafka
-        kafkaTemplate.send("game-log-topic", kafkaEvent)
+            println("📤 Sende an Kafka: $kafkaEvent")
+            kafkaTemplate.send("game-log-topic", kafkaEvent)
 
-        // Optional: zusätzlich lokal speichern (MongoDB)
-        logService.saveLog(
-            gameId = request.gameId,
-            username = request.username,
-            eventType = request.eventType,
-            delayMs = request.delayMs,
-            originTimestamp = origin
-        )
+            logService.saveLog(
+                gameId = request.gameId,
+                username = request.username,
+                eventType = request.eventType,
+                delayMs = request.delayMs,
+                originTimestamp = origin
+            )
 
+            val response = LogEventResponse.newBuilder()
+                .setSuccess(true)
+                .build()
 
-        val response = LogEventResponse.newBuilder()
-            .setSuccess(true)
-            .build()
+            responseObserver.onNext(response)
+            responseObserver.onCompleted()
 
-        responseObserver.onNext(response)
-        responseObserver.onCompleted()
+        } catch (e: Exception) {
+            println("❌ Fehler beim Verarbeiten von logEvent:")
+            e.printStackTrace()
+
+            val errorResponse = LogEventResponse.newBuilder()
+                .setSuccess(false)
+                .build()
+
+            responseObserver.onNext(errorResponse)
+            responseObserver.onCompleted()
+        }
     }
 
     override fun exportLogs(

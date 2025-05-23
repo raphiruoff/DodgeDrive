@@ -29,7 +29,6 @@ class LogService(
         repository.save(log)
     }
 
-
     fun exportLogsToCsv(gameId: String) {
         val logsDir = File("/app/export")
         if (!logsDir.exists()) logsDir.mkdirs()
@@ -41,69 +40,36 @@ class LogService(
 
         val logs = repository.findByGameId(gameId)
         if (logs.isEmpty()) {
-            println("❌ Keine Logs für gameId=$gameId gefunden.")
+            println("Keine Logs für gameId=$gameId gefunden.")
             return
         }
 
-        val sortedLogs = logs.sortedBy { it.timestamp }
-
-        // ➕ Debug-Ausgabe: wie viele Events pro Typ
-        println("📊 Event-Verteilung für gameId=$gameId:")
-        sortedLogs.groupBy { it.eventType }.forEach { (type, list) ->
-            println("  - $type: ${list.size}")
-        }
-
+        val sorted = logs.sortedBy { it.timestamp }
         val csv = StringBuilder()
-        csv.appendLine("gameId;timestamp;username;eventType;delayMs;originTimestamp")
+        csv.appendLine("gameId;username;eventType;ms")
 
-        // ➕ Schreibe ALLE Events raus – auch mit originTimestamp = null
-        sortedLogs.forEach { log ->
-            val originTsString = log.originTimestamp?.toString() ?: "NULL"
-            csv.appendLine(
-                "${log.gameId};" +
-                        "${log.timestamp};" +
-                        "${log.username};" +
-                        "${log.eventType};" +
-                        "${log.delayMs};" +
-                        originTsString
-            )
+        val base = sorted.find { it.eventType == "game_created" }?.originTimestamp?.toEpochMilli()
+        if (base == null) {
+            println("Kein game_created Event vorhanden")
+            return
         }
 
-        // ➕ Delay-Metriken nur berechnen, wenn möglich – sonst nur Hinweis
-        fun appendDelayMetric(eventType: String, metricName: String) {
-            val relevantLogs = sortedLogs.filter {
-                it.eventType == eventType && it.originTimestamp != null
-            }
+        csv.appendLine("$gameId;${sorted.first().username};game_created;0")
 
-            if (relevantLogs.size >= 2) {
-                val timestamps = relevantLogs.mapNotNull { it.originTimestamp?.toEpochMilli() }
-                if (timestamps.size >= 2) {
-                    val minTs = timestamps.minOrNull()!!
-                    val maxTs = timestamps.maxOrNull()!!
-                    val delay = maxTs - minTs
-                    val latestTimestamp = Instant.ofEpochMilli(maxTs)
-                    csv.appendLine("${gameId};${latestTimestamp};SYSTEM;$metricName;$delay;")
-                } else {
-                    println("⚠ Nur ${timestamps.size} Event(s) für '$eventType' mit gültigem originTimestamp → keine $metricName-Metrik berechnet.")
+        val includedEvents = listOf("game_start", "obstacle_spawned", "opponent_update", "score_update", "opponent_score_visible")
+        includedEvents.forEach { event ->
+            sorted.filter { it.eventType == event && it.originTimestamp != null }
+                .groupBy { it.username }
+                .forEach { (user, entries) ->
+                    val first = entries.minByOrNull { it.originTimestamp!! }!!
+                    val diff = first.originTimestamp!!.toEpochMilli() - base
+                    csv.appendLine("${first.gameId};$user;$event;$diff")
                 }
-            } else {
-                println("⚠ Nur ${relevantLogs.size} Event(s) für '$eventType' → keine $metricName-Metrik berechnet.")
-            }
         }
 
 
-        appendDelayMetric("game_start", "METRIC_game_start_delay")
-        appendDelayMetric("obstacle_spawned", "METRIC_obstacle_spawn_delay")
-        appendDelayMetric("opponent_score_visible", "METRIC_opponent_score_visible_delay")
 
         file.writeText(csv.toString())
-        println("✅ Logs für Spiel $gameId exportiert: ${file.absolutePath}")
+        println("📝 Exportierte Logdatei: ${file.absolutePath}")
     }
-
-
-
-
-
-
-
 }

@@ -6,10 +6,11 @@ import org.springframework.stereotype.Service
 
 @Service
 class ScoreProducer(
-    private val kafkaTemplate: KafkaTemplate<String, ScoreEvent>
+    private val scoreKafkaTemplate: KafkaTemplate<String, ScoreEvent>
 ) {
     fun send(event: ScoreEvent) {
-        println("📤 Sending ScoreEvent for ${event.username} with score ${event.score}")
-        kafkaTemplate.send("score-topic", event.username, event)
+        println("📤 Sending ScoreEvent: $event")
+        scoreKafkaTemplate.send("score-topic", event.username, event)
     }
 }
+
