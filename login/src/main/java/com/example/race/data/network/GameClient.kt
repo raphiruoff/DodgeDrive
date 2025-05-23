@@ -70,19 +70,27 @@ class GameClient : BaseClient(overridePort = 9093) {
     }
 
 
-    fun startGame(sessionId: String, username: String): Triple<Boolean, Long, String> {
+    fun startGameBySessionId(sessionId: String, username: String): Triple<Boolean, Long, String> {
+        val game = getGameBySession(sessionId) ?: return Triple(false, 0, "")
+        val gameId = game.gameId
+        return startGameByGameId(gameId, username)
+    }
+
+    fun startGameByGameId(gameId: String, username: String): Triple<Boolean, Long, String> {
         return try {
             val request = StartGameRequest.newBuilder()
-                .setSessionId(sessionId)
+                .setGameId(gameId)
                 .setUsername(username)
                 .build()
             val response = stub.startGame(request)
             Triple(response.success, response.startAt, response.gameId)
         } catch (e: Exception) {
-            Log.e("GameClient", "startGame failed", e)
+            Log.e("GameClient", "startGameByGameId failed", e)
             Triple(false, 0L, "")
         }
     }
+
+
 
 
 

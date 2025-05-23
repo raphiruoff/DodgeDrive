@@ -48,8 +48,8 @@ class GameController(
         responseObserver: StreamObserver<StartGameResponse>
     ) {
         try {
-            val game = gameService.getGameBySession(request.sessionId)
-                ?: throw IllegalArgumentException("Kein Spiel für Session ${request.sessionId} gefunden")
+            val game = gameService.getGame(request.gameId)
+                ?: throw IllegalArgumentException("Kein Spiel mit ID ${request.gameId} gefunden")
 
             gameService.startGame(game.gameId)
 
@@ -73,6 +73,7 @@ class GameController(
             )
         }
     }
+
 
 
     override fun getGame(

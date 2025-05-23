@@ -73,46 +73,71 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
             val centerX = (streetLeft + streetRight) / 2f
             val lowerY = screenHeight * 3f / 4f
 
+
+
             LaunchedEffect(Unit) {
+                    WebSocketManager.connect(
+                        gameId = gameId,
+                        onObstacle = { event ->
+                            println("📲 Obstacle received in client: $event")
+                            obstacles.add(
+                                Obstacle(
+                                    x = event.x * screenWidth,
+                                    y = -50f,
+                                    timestamp = event.timestamp
+                                )
+                            )
+                        },
+                        onScore = { event ->
+                            if (event.username != username) {
+                                opponentScore.value = event.newScore
+                                previousOpponentScore.value = event.newScore
+
+                                if (previousOpponentScore.value == 0 && event.newScore > 0) {
+                                    AllClients.logClient.logEventWithTimestamp(
+                                        gameId, username, "opponent_score_visible", System.currentTimeMillis()
+                                    )
+                                }
+                            }
+                        }
+                    )
+                // Setze Auto auf Startposition
                 carState.value = CarState(carX = centerX, carY = lowerY, angle = 0f)
 
+                // 1. Session abfragen, um zu sehen ob Spieler A oder B (kann für spätere Logs nützlich sein)
                 val session = AllClients.sessionClient.getSession(gameId)
-                val isPlayerA = username == session?.playerA
 
-                val gameResponse = if (isPlayerA) {
-                    val (success, _, _) = AllClients.gameClient.startGame(gameId, username) //TODO:
-                    if (!success) {
-                        println("⚠️ Spielstart fehlgeschlagen")
-                        return@LaunchedEffect
-                    }
-                    AllClients.gameClient.getGameBySession(gameId)
-                } else {
-                    AllClients.gameClient.getGameBySession(gameId)
-                }
+                // 2. Nur Spielzustand laden – KEIN Start mehr nötig hier!
+                val gameResponse = AllClients.gameClient.getGameBySession(gameId)
 
+                // 3. Starte nur, wenn startAt gesetzt ist
                 startAt = gameResponse?.startAt ?: 0L
                 println("🕒 Server startAt (gültig für beide Spieler): $startAt")
 
+                // 4. Countdown berechnen
                 val countdownTarget = startAt - 3000L
                 val countdownStartElapsed = SystemClock.elapsedRealtime() + (countdownTarget - System.currentTimeMillis())
                 val gameStartElapsedTarget = SystemClock.elapsedRealtime() + (startAt - System.currentTimeMillis())
 
+                // 5. Warten auf Countdown-Start
                 while (SystemClock.elapsedRealtime() < countdownStartElapsed) {
                     delay(1)
                 }
 
+                // 6. Countdown anzeigen
                 for (i in 3 downTo 1) {
                     countdown = i
                     delay(1000L)
                 }
                 countdown = null
 
+                // 7. Warten bis zum echten Start
                 while (SystemClock.elapsedRealtime() < gameStartElapsedTarget) {
                     delay(1)
                 }
 
+                // 8. Spiel starten
                 gameStartElapsed = SystemClock.elapsedRealtime()
-
                 val now = System.currentTimeMillis()
                 val diff = now - startAt
                 println("🚦 Spieler $username startet lokal um $now (server startAt: $startAt, Differenz: ${diff}ms)")
@@ -127,6 +152,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 isStarted = true
                 gameStartDelay = SystemClock.elapsedRealtime() - gameStartTime
             }
+
 
 
 
@@ -177,33 +203,6 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 }
 
 
-                // Gegnerdaten regelmäßig abfragen
-                LaunchedEffect(Unit) {
-                    WebSocketManager.connect(
-                        gameId = gameId,
-                        onObstacle = { event ->
-                            obstacles.add(
-                                Obstacle(
-                                    x = event.x * screenWidth,
-                                    y = -50f,
-                                    timestamp = event.timestamp
-                                )
-                            )
-                        },
-                        onScore = { event ->
-                            if (event.username != username) {
-                                opponentScore.value = event.newScore
-                                previousOpponentScore.value = event.newScore
-
-                                if (previousOpponentScore.value == 0 && event.newScore > 0) {
-                                    AllClients.logClient.logEventWithTimestamp(
-                                        gameId, username, "opponent_score_visible", System.currentTimeMillis()
-                                    )
-                                }
-                            }
-                        }
-                    )
-                }
 
 
             }

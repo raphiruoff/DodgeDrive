@@ -84,11 +84,9 @@ message IncrementScoreResponse {
 }
 
 message StartGameRequest {
-    string sessionId = 1;
+    string gameId = 1;
     string username = 2;
-    string playerA = 3;
-    string playerB = 4;
-    int64 originTimestamp = 5;
+
 }
 
 
