@@ -15,7 +15,9 @@ data class GameModel @JsonCreator constructor(
     @JsonProperty("status") var status: GameStatus = GameStatus.IN_PROGRESS,
     @JsonProperty("obstacles", required = false) val obstacles: MutableList<ObstacleModel> = mutableListOf(),
     @JsonProperty("startAt") var startAt: Long,
-    @JsonProperty("finishedPlayers") var finishedPlayers: MutableSet<String> = mutableSetOf()
+    @JsonProperty("finishedPlayers") var finishedPlayers: MutableSet<String> = mutableSetOf(),
+    @JsonProperty("scoredObstacles") val scoredObstacles: MutableSet<Long> = mutableSetOf()
+
 )
 
 

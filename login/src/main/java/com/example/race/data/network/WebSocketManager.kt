@@ -2,6 +2,7 @@ package com.example.race.data.network
 
 import com.google.gson.Gson
 import de.ruoff.consistency.events.ObstacleSpawnedEvent
+import de.ruoff.consistency.events.ScoreUpdateEvent
 import io.reactivex.disposables.Disposable
 import ua.naiksoftware.stomp.Stomp
 import ua.naiksoftware.stomp.StompClient
@@ -16,17 +17,23 @@ object WebSocketManager {
     private var echoDisposable: Disposable? = null
     private var lifecycleDisposable: Disposable? = null
     private var obstacleDisposable: Disposable? = null
+    private var globalOnScoreUpdate: ((ScoreUpdateEvent) -> Unit)? = null
+    private var scoreDisposable: Disposable? = null
 
     private var globalOnObstacle: ((ObstacleSpawnedEvent) -> Unit)? = null
 
     fun connect(
         gameId: String,
-        onObstacle: (ObstacleSpawnedEvent) -> Unit = { println("⚠️ Kein Obstacle-Callback gesetzt: $it") }
+        onObstacle: (ObstacleSpawnedEvent) -> Unit = { println("⚠️ Kein Obstacle-Callback gesetzt: $it") },
+        onScoreUpdate: (ScoreUpdateEvent) -> Unit = {}
+
+
     ) {
         println("🌐 WS Init: $SOCKET_URL")
         stompClient = Stomp.over(Stomp.ConnectionProvider.OKHTTP, SOCKET_URL)
         stompClient.withClientHeartbeat(10000).withServerHeartbeat(10000)
         globalOnObstacle = onObstacle
+        globalOnScoreUpdate = onScoreUpdate
 
         lifecycleDisposable = stompClient.lifecycle().subscribe { event ->
             println("💡 WS Lifecycle: $event")
@@ -60,7 +67,21 @@ object WebSocketManager {
                             println("❌ WS Fehler bei Obstacle-Subscription: ${error.message}")
                         }
                     )
-
+                    scoreDisposable = stompClient.topic("/topic/scores/$gameId").subscribe(
+                        { frame ->
+                            println("🟢 WS ScoreUpdate empfangen: ${frame.payload}")
+                            try {
+                                val scoreUpdate = Gson().fromJson(frame.payload, ScoreUpdateEvent::class.java)
+                                println("✅ WS ScoreUpdate geparst: $scoreUpdate")
+                                globalOnScoreUpdate?.invoke(scoreUpdate)
+                            } catch (e: Exception) {
+                                println("❌ ScoreUpdate-Parsing-Fehler: ${e.message}")
+                            }
+                        },
+                        { error ->
+                            println("❌ WS Fehler bei ScoreUpdate-Subscription: ${error.message}")
+                        }
+                    )
                     sendEchoMessage("Hallo Server 👋")
                 }
 
@@ -82,6 +103,7 @@ object WebSocketManager {
             echoDisposable?.dispose()
             obstacleDisposable?.dispose()
             stompClient.disconnect()
+            scoreDisposable?.dispose()
         }
     }
 

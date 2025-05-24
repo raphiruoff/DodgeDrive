@@ -16,7 +16,9 @@ class GameService(
     private val scoreProducer: ScoreProducer,
     private val gameLogProducer: GameLogProducer,
     private val redisLockService: RedisLockService,
-    private val gameEventProducer: GameEventProducer
+    private val gameEventProducer: GameEventProducer,
+
+
 ) {
 
     fun createGame(
@@ -83,7 +85,7 @@ class GameService(
 
 
     private fun generateObstacles(gameId: String, startAt: Long): List<ObstacleModel> {
-        val obstacleCount = 100
+        val obstacleCount = 10
         val intervalMs = 3500L
         val lanes = listOf(0.33f, 0.5f, 0.66f)
         val seed = gameId.hashCode().toLong()
@@ -128,28 +130,32 @@ class GameService(
         return success
     }
 
-    fun incrementScore(
-        gameId: String,
-        player: String,
-        originTimestamp: Long?
-    ): Boolean {
+    fun incrementScore(gameId: String, player: String, obstacleTimestamp: Long, originTimestamp: Long?): Boolean {
         val game = gameRepository.findById(gameId) ?: return false
+
+        // Skip if already counted
+        if (game.scoredObstacles.contains(obstacleTimestamp)) {
+            println("⚠️ Obstacle $obstacleTimestamp wurde bereits gezählt.")
+            return false
+        }
+
+        game.scoredObstacles.add(obstacleTimestamp)
         val newScore = (game.scores[player] ?: 0) + 1
         game.scores[player] = newScore
         gameRepository.save(game)
 
         originTimestamp?.let {
-            gameLogProducer.send(
-                GameLogEvent(
-                    gameId = gameId,
-                    username = player,
-                    eventType = "score_updated",
-                    originTimestamp = it
-                )
-            )
+            gameLogProducer.send(GameLogEvent(gameId, player, "score_updated", it))
         }
+
+        gameEventProducer.sendScoreUpdate(
+            ScoreUpdateEvent(gameId, player, newScore, System.currentTimeMillis())
+        )
+
         return true
     }
+
+
 
     fun finishGame(gameId: String, player: String): Boolean {
         // 1. Spieler als fertig markieren

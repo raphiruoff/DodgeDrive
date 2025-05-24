@@ -87,10 +87,18 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                     gameId = gameId,
                     onObstacle = { obstacle ->
                         println("📥 Obstacle empfangen: $obstacle")
-                        pendingObstacles.add(obstacle) // ❗ statt direkt obstacles.add
+                        pendingObstacles.add(obstacle)
+                    },
+                    onScoreUpdate = { event ->
+                        println("🏁 ScoreUpdate empfangen: $event")
+                        if (event.username == username) {
+                            playerScore = event.newScore
+                        } else {
+                            opponentScore.value = event.newScore
+                        }
                     }
-
                 )
+
 
                 // 2. Kleine Wartezeit, damit die Subscriptions vollständig aktiv sind
                 delay(500)
@@ -203,14 +211,18 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                                 isGameOver.value = true
                             }
 
-                            if (obstacle.y > screenHeight) {
+                            if (obstacle.y > screenHeight && !obstacle.scored) {
+                                obstacle.scored = true
                                 toRemove.add(obstacle)
+
                                 val start = SystemClock.elapsedRealtime()
                                 val success = AllClients.gameClient.incrementScore(
-                                    gameId,
-                                    username,
-                                    System.currentTimeMillis()
+                                    gameId = gameId,
+                                    player = username,
+                                    obstacleTimestamp = obstacle.timestamp,
+                                    originTimestamp = System.currentTimeMillis()
                                 )
+
                                 val end = SystemClock.elapsedRealtime()
                                 if (success) {
                                     AllClients.logClient.logEventWithDelay(
@@ -221,6 +233,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                                     )
                                 }
                             }
+
                         }
                     }
 
