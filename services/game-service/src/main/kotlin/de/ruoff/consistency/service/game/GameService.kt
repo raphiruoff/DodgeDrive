@@ -159,14 +159,6 @@ class GameService(
                 )
             )
         }
-        gameEventProducer.sendScoreUpdate(
-            ScoreUpdateEvent(
-                gameId = gameId,
-                username = player,
-                newScore = newScore,
-                timestamp = System.currentTimeMillis()
-            )
-        )
         return true
     }
 
@@ -220,15 +212,32 @@ class GameService(
         game.startAt = updatedStartAt
         gameRepository.save(game)
 
+        println("[GameService] Spielstart vorbereitet → gameId=$gameId, startAt=$updatedStartAt")
+
+        // 📤 Jetzt erst Hindernisse versenden (alle!)
+        game.obstacles.forEach { obstacle ->
+            println("📤 Sende obstacle (startGame) → x=${obstacle.x}, timestamp=${obstacle.timestamp}")
+            gameEventProducer.sendObstacleSpawned(
+                ObstacleSpawnedEvent(
+                    gameId = gameId,
+                    x = obstacle.x,
+                    timestamp = obstacle.timestamp
+                )
+            )
+        }
+
+        // 📝 Spielstart loggen (als Event)
         gameLogProducer.send(
             GameLogEvent(
                 gameId = gameId,
-                username = game.playerA,
+                username = game.playerA, // oder auch "system" o. Ä.
                 eventType = "game_start",
                 originTimestamp = System.currentTimeMillis()
             )
         )
+
         return true
     }
+
 
 }

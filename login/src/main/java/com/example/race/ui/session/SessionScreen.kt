@@ -12,6 +12,7 @@ import com.example.race.common.TokenUtils
 import com.example.race.data.network.AllClients
 import com.example.race.data.network.GameClient
 import com.example.race.data.network.TokenHolder
+import com.example.race.data.network.WebSocketManager
 import de.ruoff.consistency.service.session.Session
 import io.grpc.stub.StreamObserver
 import kotlinx.coroutines.Dispatchers
@@ -51,6 +52,11 @@ fun SessionScreen(
     }
 
     LaunchedEffect(Unit) {
+
+
+
+
+
         if (username == null) return@LaunchedEffect
 
         try {

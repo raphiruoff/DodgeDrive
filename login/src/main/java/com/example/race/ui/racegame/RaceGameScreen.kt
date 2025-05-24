@@ -76,31 +76,9 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
 
 
             LaunchedEffect(Unit) {
-                    WebSocketManager.connect(
-                        gameId = gameId,
-                        onObstacle = { event ->
-                            println("📲 Obstacle received in client: $event")
-                            obstacles.add(
-                                Obstacle(
-                                    x = event.x * screenWidth,
-                                    y = -50f,
-                                    timestamp = event.timestamp
-                                )
-                            )
-                        },
-                        onScore = { event ->
-                            if (event.username != username) {
-                                opponentScore.value = event.newScore
-                                previousOpponentScore.value = event.newScore
+                println("connect() wird jetzt ausgeführt")
+                WebSocketManager.connect()
 
-                                if (previousOpponentScore.value == 0 && event.newScore > 0) {
-                                    AllClients.logClient.logEventWithTimestamp(
-                                        gameId, username, "opponent_score_visible", System.currentTimeMillis()
-                                    )
-                                }
-                            }
-                        }
-                    )
                 // Setze Auto auf Startposition
                 carState.value = CarState(carX = centerX, carY = lowerY, angle = 0f)
 
@@ -267,6 +245,10 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                             )
                         )
                     }) { Text("⬅️ Links") }
+
+                    Button(onClick = {
+                        WebSocketManager.sendEchoMessage("👋 Echo von Button")
+                    }) { Text("🗣️ Echo") }
 
                     Button(onClick = {
                         carState.value = carState.value.copy(
