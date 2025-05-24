@@ -83,7 +83,7 @@ class GameService(
 
 
     private fun generateObstacles(gameId: String, startAt: Long): List<ObstacleModel> {
-        val obstacleCount = 500
+        val obstacleCount = 100
         val intervalMs = 3500L
         val lanes = listOf(0.33f, 0.5f, 0.66f)
         val seed = gameId.hashCode().toLong()

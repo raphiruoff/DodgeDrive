@@ -24,6 +24,7 @@ import com.example.race.ui.racegame.components.Car
 import com.example.race.ui.racegame.components.Obstacle
 import com.example.race.ui.racegame.components.ScrollingRaceTrack
 import com.example.race.ui.racegame.state.CarState
+import de.ruoff.consistency.events.ObstacleSpawnedEvent
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
@@ -60,9 +61,11 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
 
 
     Column(modifier = Modifier.fillMaxSize()) {
-        BoxWithConstraints(modifier = Modifier
-            .weight(1f)
-            .fillMaxWidth()) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+        ) {
             val screenWidth = constraints.maxWidth
             val screenHeight = constraints.maxHeight
             val carWidth = 48f
@@ -74,6 +77,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
             val lowerY = screenHeight * 3f / 4f
 
 
+            val pendingObstacles = remember { mutableStateListOf<ObstacleSpawnedEvent>() }
 
             LaunchedEffect(Unit) {
                 println("✅ Spielaufbau gestartet für gameId: $gameId")
@@ -83,21 +87,19 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                     gameId = gameId,
                     onObstacle = { obstacle ->
                         println("📥 Obstacle empfangen: $obstacle")
-                        obstacles.add(
-                            Obstacle(
-                                x = obstacle.x * screenWidth,
-                                y = -50f,
-                                timestamp = obstacle.timestamp
-                            )
-                        )
+                        pendingObstacles.add(obstacle) // ❗ statt direkt obstacles.add
                     }
+
                 )
 
                 // 2. Kleine Wartezeit, damit die Subscriptions vollständig aktiv sind
                 delay(500)
 
                 // 3. Spiel starten – Hindernisse werden jetzt vom Server über WebSocket gepusht
-                val (success, startAtServer, _) = AllClients.gameClient.startGameByGameId(gameId, username)
+                val (success, startAtServer, _) = AllClients.gameClient.startGameByGameId(
+                    gameId,
+                    username
+                )
                 if (!success) {
                     println("❌ Spielstart fehlgeschlagen für gameId: $gameId")
                     return@LaunchedEffect
@@ -109,8 +111,10 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 // 5. Countdown vorbereiten
                 println("🕒 Server startAt: $startAtServer")
                 val countdownTarget = startAtServer - 3000L
-                val countdownStartElapsed = SystemClock.elapsedRealtime() + (countdownTarget - System.currentTimeMillis())
-                val gameStartElapsedTarget = SystemClock.elapsedRealtime() + (startAtServer - System.currentTimeMillis())
+                val countdownStartElapsed =
+                    SystemClock.elapsedRealtime() + (countdownTarget - System.currentTimeMillis())
+                val gameStartElapsedTarget =
+                    SystemClock.elapsedRealtime() + (startAtServer - System.currentTimeMillis())
 
                 // 6. Warten auf Countdown-Beginn
                 while (SystemClock.elapsedRealtime() < countdownStartElapsed) {
@@ -144,6 +148,32 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
 
                 isStarted = true
                 gameStartDelay = SystemClock.elapsedRealtime() - gameStartTime
+            }
+
+
+            LaunchedEffect(Unit) {
+                while (true) {
+                    val nextObstacle = pendingObstacles.minByOrNull { it.timestamp }
+
+                    if (nextObstacle != null) {
+                        val waitTime = nextObstacle.timestamp - System.currentTimeMillis()
+                        if (waitTime > 0) {
+                            delay(waitTime)
+                        }
+
+                        obstacles.add(
+                            Obstacle(
+                                x = nextObstacle.x * screenWidth,
+                                y = -50f,
+                                timestamp = nextObstacle.timestamp
+                            )
+                        )
+                        pendingObstacles.remove(nextObstacle)
+                    } else {
+                        // Keine Obstacle-Ereignisse da – kurz warten
+                        delay(10L)
+                    }
+                }
             }
 
 
@@ -196,8 +226,6 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
 
                     obstacles.removeAll(toRemove)
                 }
-
-
 
 
             }
@@ -264,19 +292,13 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                     }) { Text("⬅️ Links") }
 
                     Button(onClick = {
-                        WebSocketManager.sendEchoMessage("👋 Echo von Button")
-                    }) {
-                        Text("🗣️ Echo")
-                    }
-
-                    Button(onClick = {
-                        println("🧱 Obstacle-Test per STOMP wird ausgelöst...")
-                        WebSocketManager.sendTestObstacle("test")
-                    }) {
-                        Text("📤 Obstacle senden (STOMP)")
-                    }
-
-
+                        carState.value = carState.value.copy(
+                            carX = (carState.value.carX + moveStep).coerceIn(
+                                streetLeft,
+                                streetRight
+                            )
+                        )
+                    }) { Text("➡️ Rechts") }
 
                 }
             }
