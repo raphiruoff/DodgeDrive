@@ -17,7 +17,8 @@ data class GameModel @JsonCreator constructor(
     @JsonProperty("obstacles", required = false) val obstacles: MutableList<ObstacleModel> = mutableListOf(),
     @JsonProperty("startAt") var startAt: Long,
     @JsonProperty("finishedPlayers") var finishedPlayers: MutableSet<String> = mutableSetOf(),
-    @JsonProperty("scoredObstacleIds") val scoredObstacleIds: MutableSet<String> = mutableSetOf()
+    @JsonProperty("scoredObstacleIds") val scoredObstacleIds: MutableSet<String> = mutableSetOf(),
+    @JsonProperty("scoredByPlayer") val scoredByPlayer: MutableMap<String, MutableSet<String>> = mutableMapOf()
 
 
 )

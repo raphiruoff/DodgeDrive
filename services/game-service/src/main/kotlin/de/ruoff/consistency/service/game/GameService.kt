@@ -131,38 +131,32 @@ class GameService(
     }
 
     fun incrementScore(gameId: String, player: String, obstacleId: String, originTimestamp: Long?): Boolean {
-        println("➡️ [incrementScore] Aufruf mit gameId=$gameId, player=$player, obstacleId=$obstacleId, originTimestamp=$originTimestamp")
+        println("➡️ [incrementScore] Aufruf mit gameId=$gameId, player=$player, obstacleId=$obstacleId")
 
-        val game = gameRepository.findById(gameId)
-        if (game == null) {
-            println("❌ Spiel $gameId nicht gefunden – Score wird nicht erhöht")
+        val game = gameRepository.findById(gameId) ?: run {
+            println("❌ Spiel $gameId nicht gefunden")
             return false
         }
 
-        // Duplikat-Check anhand eindeutiger ID
-        if (game.scoredObstacleIds.contains(obstacleId)) {
-            println("⚠️ Obstacle $obstacleId wurde bereits gezählt. Aktueller Score von $player: ${game.scores[player] ?: 0}")
+        val playerSet = game.scoredByPlayer.getOrPut(player) { mutableSetOf() }
+
+        if (playerSet.contains(obstacleId)) {
+            println("⚠️ Spieler $player hat Hindernis $obstacleId schon gewertet.")
             return false
         }
 
-        // Hindernis-ID merken
-        game.scoredObstacleIds.add(obstacleId)
+        playerSet.add(obstacleId)
 
-        // Punktestand erhöhen
         val newScore = (game.scores[player] ?: 0) + 1
         game.scores[player] = newScore
         gameRepository.save(game)
 
-        println("✅ Punktestand aktualisiert → $player: $newScore (Obstacle: $obstacleId)")
+        println("✅ Punktestand für $player erhöht auf $newScore")
 
-        // Logging
         originTimestamp?.let {
-            println("📝 Logging Event für $player mit originTimestamp=$it")
             gameLogProducer.send(GameLogEvent(gameId, player, "score_updated", it))
         }
 
-        // Event raussenden
-        println("📤 Sende ScoreUpdateEvent: $player → $newScore")
         gameEventProducer.sendScoreUpdate(
             ScoreUpdateEvent(gameId, player, newScore, System.currentTimeMillis())
         )

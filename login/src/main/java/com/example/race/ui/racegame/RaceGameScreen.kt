@@ -90,8 +90,12 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                         pendingObstacles.add(obstacle)
                     },
                     onScoreUpdate = { event ->
-                        println("🏁 ScoreUpdate empfangen: $event")
-                        if (event.username == username) {
+                        println("👤 Lokaler Username: $username")
+                        println("📩 Event Username: ${event.username}")
+                        println("📊 Event Score: ${event.newScore}")
+                        println("🟡 Match? ${event.username == username}")
+
+                        if (event.username.equals(username, ignoreCase = true)) {
                             playerScore = event.newScore
                         } else {
                             opponentScore.value = event.newScore
