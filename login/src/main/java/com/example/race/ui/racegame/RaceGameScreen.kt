@@ -76,160 +76,90 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
             val streetRight = screenWidth * 5f / 6f - carWidth - offsetFix
             val centerX = (streetLeft + streetRight) / 2f
             val lowerY = screenHeight * 3f / 4f
-            val hasLoggedOpponentUpdate = remember { mutableSetOf<Long>() }
-            val hasExportedLogs = remember { mutableStateOf(false) }
 
             val pendingObstacles = remember { mutableStateListOf<ObstacleSpawnedEvent>() }
+            val seenObstacleIds = remember { mutableSetOf<String>() }
+            val scoredObstacleIds = remember { mutableSetOf<String>() }
+            val seenOpponentTimestamps = remember { mutableSetOf<Long>() }
+            val hasLoggedGameStart = remember { mutableStateOf(false) }
+            val hasExportedLogs = remember { mutableStateOf(false) }
 
             LaunchedEffect(Unit) {
-                println("✅ Spielaufbau gestartet für gameId: $gameId")
-
-                // 1. WebSocket-Verbindung herstellen, damit Obstacle-Events empfangen werden können
                 WebSocketManager.connect(
                     gameId = gameId,
-                    onObstacle = { obstacle ->
-                        println("📥 Obstacle empfangen: $obstacle")
-                        pendingObstacles.add(obstacle)
-                    },
+                    onObstacle = { obstacle -> pendingObstacles.add(obstacle) },
                     onScoreUpdate = { event ->
-                        println("👤 Lokaler Username: $username")
-                        println("📩 Event Username: ${event.username}")
-                        println("📊 Event Score: ${event.newScore}")
-                        println("🟡 Match? ${event.username == username}")
-
                         if (event.username.equals(username, ignoreCase = true)) {
                             playerScore = event.newScore
                         } else {
                             opponentScore.value = event.newScore
-
-                            if (hasLoggedOpponentUpdate.add(event.timestamp)) {
+                            if (seenOpponentTimestamps.add(event.timestamp)) {
                                 AllClients.logClient.logEventWithTimestamp(
-                                    gameId = gameId,
-                                    username = username,
-                                    eventType = "opponent_update",
-                                    originTimestamp = event.timestamp
+                                    gameId, username, "opponent_update", event.timestamp
                                 )
                             }
-
                         }
-
                     }
                 )
 
+                delay(500)
 
+                val (success, startAtServer, _) = AllClients.gameClient.startGameByGameId(gameId, username)
+                if (!success) return@LaunchedEffect
 
-                // 3. Spiel starten – Hindernisse werden jetzt vom Server über WebSocket gepusht
-                val (success, startAtServer, _) = AllClients.gameClient.startGameByGameId(
-                    gameId,
-                    username
-                )
-                if (!success) {
-                    println("❌ Spielstart fehlgeschlagen für gameId: $gameId")
-                    return@LaunchedEffect
-                }
-
-                // 4. Auto auf Startposition setzen
                 carState.value = CarState(carX = centerX, carY = lowerY, angle = 0f)
 
-                // 5. Countdown vorbereiten
-                println("🕒 Server startAt: $startAtServer")
                 val countdownTarget = startAtServer - 3000L
-                val countdownStartElapsed =
-                    SystemClock.elapsedRealtime() + (countdownTarget - System.currentTimeMillis())
-                val gameStartElapsedTarget =
-                    SystemClock.elapsedRealtime() + (startAtServer - System.currentTimeMillis())
+                val countdownStartElapsed = SystemClock.elapsedRealtime() + (countdownTarget - System.currentTimeMillis())
+                val gameStartElapsedTarget = SystemClock.elapsedRealtime() + (startAtServer - System.currentTimeMillis())
 
-                // 6. Warten auf Countdown-Beginn
-                while (SystemClock.elapsedRealtime() < countdownStartElapsed) {
-                    delay(1)
-                }
-
-                // 7. Countdown anzeigen
+                while (SystemClock.elapsedRealtime() < countdownStartElapsed) delay(1)
                 for (i in 3 downTo 1) {
                     countdown = i
                     delay(1000L)
                 }
                 countdown = null
+                while (SystemClock.elapsedRealtime() < gameStartElapsedTarget) delay(1)
 
-                // 8. Warten bis Spielstart
-                while (SystemClock.elapsedRealtime() < gameStartElapsedTarget) {
-                    delay(1)
+                if (!hasLoggedGameStart.value) {
+                    hasLoggedGameStart.value = true
+                    AllClients.logClient.logEventWithTimestamp(
+                        gameId, username, "game_start", startAtServer
+                    )
                 }
 
-                // 9. Spielstart lokal registrieren & Logging
-                gameStartElapsed = SystemClock.elapsedRealtime()
-                val localStartTime = System.currentTimeMillis()
-                val diff = localStartTime - startAtServer
-                println("🚦 Spieler $username startet lokal um $localStartTime (startAt: $startAtServer, Differenz: ${diff}ms)")
-
-                AllClients.logClient.logEventWithTimestamp(
-                    gameId = gameId,
-                    username = username,
-                    eventType = "game_start",
-                    originTimestamp = startAtServer
-                )
-
                 isStarted = true
-                gameStartDelay = SystemClock.elapsedRealtime() - gameStartTime
             }
-
-
-            val seenObstacleIds = remember { mutableSetOf<String>() }
 
             LaunchedEffect(Unit) {
                 while (true) {
-                    val nextObstacle = pendingObstacles.minByOrNull { it.timestamp }
-
-                    if (nextObstacle != null) {
-                        val waitTime = nextObstacle.timestamp - System.currentTimeMillis()
+                    val next = pendingObstacles.minByOrNull { it.timestamp }
+                    if (next != null) {
+                        val waitTime = next.timestamp - System.currentTimeMillis()
                         if (waitTime > 0) delay(waitTime)
-
-                        // Nur loggen, wenn ID noch nicht verarbeitet wurde
-                        if (seenObstacleIds.add(nextObstacle.id)) {
+                        if (seenObstacleIds.add(next.id)) {
                             AllClients.logClient.logEventWithTimestamp(
-                                gameId = gameId,
-                                username = username,
-                                eventType = "obstacle_spawned",
-                                originTimestamp = nextObstacle.timestamp
+                                gameId, username, "obstacle_spawned", next.timestamp
                             )
+                            obstacles.add(Obstacle(next.id, next.x * screenWidth, -50f, next.timestamp.toFloat()))
                         }
-
-                        val obstacle = Obstacle(
-                            id = nextObstacle.id,
-                            x = nextObstacle.x * screenWidth,
-                            y = -50f,
-                            timestamp = nextObstacle.timestamp
-                        )
-                        obstacles.add(obstacle)
-                        pendingObstacles.remove(nextObstacle)
-                    } else {
-                        delay(10L)
-                    }
+                        pendingObstacles.remove(next)
+                    } else delay(10)
                 }
             }
 
-
-
-
-
-
-
             if (isStarted) {
-
-                // Spiel-Loop: Hindernisse bewegen, Score erhöhen
                 LaunchedEffect(Unit) {
                     while (true) {
                         renderTick.value = System.currentTimeMillis()
-                        delay(16L) // 60 FPS
+                        delay(16L)
                     }
                 }
-                LaunchedEffect(renderTick.value) {
-                    val iterator = obstacles.iterator()
-                    val toRemove = mutableListOf<Obstacle>()
 
+                LaunchedEffect(renderTick.value) {
+                    val toRemove = mutableListOf<Obstacle>()
                     if (!isGameOver.value) {
-                        while (iterator.hasNext()) {
-                            val obstacle = iterator.next()
+                        for (obstacle in obstacles) {
                             obstacle.y += 8f
 
                             if (checkCollision(carState.value, obstacle)) {
@@ -240,33 +170,22 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                                 obstacle.scored = true
                                 toRemove.add(obstacle)
 
-                                val start = SystemClock.elapsedRealtime()
-                                val now = System.currentTimeMillis()
-                                val success = AllClients.gameClient.incrementScore(
-                                    gameId = gameId,
-                                    player = username,
-                                    obstacleId = obstacle.id,
-                                    originTimestamp = System.currentTimeMillis()
-                                )
-
-                                val end = SystemClock.elapsedRealtime()
-                                if (success) {
-                                    AllClients.logClient.logEventWithTimestamp(
-                                        gameId = gameId,
-                                        username = username,
-                                        eventType = "score_updated",
-                                        originTimestamp = now
-                                    )
+                                if (scoredObstacleIds.add(obstacle.id)) {
+                                    val origin = System.currentTimeMillis()
+                                    if (AllClients.gameClient.incrementScore(
+                                            gameId, username, obstacle.id, origin
+                                        )
+                                    ) {
+                                        AllClients.logClient.logEventWithTimestamp(
+                                            gameId, username, "score_updated", origin
+                                        )
+                                    }
                                 }
                             }
-
                         }
                     }
-
                     obstacles.removeAll(toRemove)
                 }
-
-
             }
 
             //UI
