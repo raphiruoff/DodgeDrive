@@ -1,5 +1,7 @@
 package com.example.race.data.network
 
+import com.google.gson.Gson
+import de.ruoff.consistency.events.ObstacleSpawnedEvent
 import io.reactivex.disposables.Disposable
 import ua.naiksoftware.stomp.Stomp
 import ua.naiksoftware.stomp.StompClient
@@ -13,17 +15,25 @@ object WebSocketManager {
     private var testDisposable: Disposable? = null
     private var echoDisposable: Disposable? = null
     private var lifecycleDisposable: Disposable? = null
+    private var obstacleDisposable: Disposable? = null
 
-    fun connect() {
+    private var globalOnObstacle: ((ObstacleSpawnedEvent) -> Unit)? = null
+
+    fun connect(
+        gameId: String,
+        onObstacle: (ObstacleSpawnedEvent) -> Unit = { println("⚠️ Kein Obstacle-Callback gesetzt: $it") }
+    ) {
         println("🌐 WS Init: $SOCKET_URL")
         stompClient = Stomp.over(Stomp.ConnectionProvider.OKHTTP, SOCKET_URL)
         stompClient.withClientHeartbeat(10000).withServerHeartbeat(10000)
+        globalOnObstacle = onObstacle
 
         lifecycleDisposable = stompClient.lifecycle().subscribe { event ->
             println("💡 WS Lifecycle: $event")
             when (event.type) {
                 LifecycleEvent.Type.OPENED -> {
-                    println(" WS Verbunden – Subscriptions starten...")
+                    println("✅ WS Verbunden – Subscriptions starten...")
+                    println("📡 WS Subscribing to on: $gameId")
 
                     testDisposable = stompClient.topic("/topic/test").subscribe(
                         { frame -> println("✅ WS Test empfangen: ${frame.payload}") },
@@ -35,21 +45,28 @@ object WebSocketManager {
                         { error -> println("❌ WS Echo Fehler: ${error.message}") }
                     )
 
-                    //  Jetzt senden
+                    obstacleDisposable = stompClient.topic("/topic/obstacles/$gameId").subscribe(
+                        { frame ->
+                            println("🧱 WS FrameRaw-Obstacle-JSON: ${frame.payload}")
+                            try {
+                                val obstacle = Gson().fromJson(frame.payload, ObstacleSpawnedEvent::class.java)
+                                println("✅ WS Obstacle geparst: $obstacle")
+                                globalOnObstacle?.invoke(obstacle)
+                            } catch (e: Exception) {
+                                println("❌ Parsing-Fehler: ${e.message}")
+                            }
+                        },
+                        { error ->
+                            println("❌ WS Fehler bei Obstacle-Subscription: ${error.message}")
+                        }
+                    )
+
                     sendEchoMessage("Hallo Server 👋")
                 }
 
-                LifecycleEvent.Type.ERROR -> {
-                    println("❌ WS Lifecycle-Fehler: ${event.exception?.message}")
-                }
-
-                LifecycleEvent.Type.CLOSED -> {
-                    println("🔌 WS Verbindung geschlossen.")
-                }
-
-                else -> {
-                    println("ℹ️ WS Event: ${event.type}")
-                }
+                LifecycleEvent.Type.ERROR -> println("❌ WS Lifecycle-Fehler: ${event.exception?.message}")
+                LifecycleEvent.Type.CLOSED -> println("🔌 WS Verbindung geschlossen.")
+                else -> println("ℹ️ WS Event: ${event.type}")
             }
         }
 
@@ -63,6 +80,7 @@ object WebSocketManager {
             lifecycleDisposable?.dispose()
             testDisposable?.dispose()
             echoDisposable?.dispose()
+            obstacleDisposable?.dispose()
             stompClient.disconnect()
         }
     }
@@ -78,6 +96,22 @@ object WebSocketManager {
             println("⚠️ STOMP-Client nicht verbunden")
         }
     }
+
+
+
+
+    fun sendTestObstacle(gameId: String = "test") {
+        if (::stompClient.isInitialized && stompClient.isConnected) {
+            println("📤 Sende STOMP-Nachricht an /app/test-obstacle")
+
+            stompClient.send("/app/test-obstacle", "TestTrigger").subscribe(
+                { println("✅ Test-Obstacle-Request gesendet") },
+                { error -> println("❌ Fehler beim Senden des Test-Obstacles: ${error.message}") }
+            )
+        } else {
+            println("⚠️ STOMP-Client nicht verbunden")
+        }
+    }
+
+
 }
-
-

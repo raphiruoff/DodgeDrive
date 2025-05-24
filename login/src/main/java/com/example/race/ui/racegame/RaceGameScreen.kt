@@ -76,8 +76,25 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
 
 
             LaunchedEffect(Unit) {
-                println("connect() wird jetzt ausgeführt")
-                WebSocketManager.connect()
+                println("✅ connect() wird jetzt ausgeführt für gameId: $gameId")
+                WebSocketManager.connect(gameId = "test")
+
+                // 1. WebSocket-Verbindung aufbauen (mit richtiger gameId)
+                WebSocketManager.connect(
+                    gameId = gameId,
+                    onObstacle = { obstacle ->
+                        println("📥 Obstacle im Client empfangen: $obstacle")
+                        obstacles.add(
+                            Obstacle(
+                                x = obstacle.x * screenWidth,
+                                y = -50f,
+                                timestamp = obstacle.timestamp
+                            )
+                        )
+                    }
+                )
+                delay(500) // Sicherheitszeit, um Subscriptions aufzubauen
+
 
                 // Setze Auto auf Startposition
                 carState.value = CarState(carX = centerX, carY = lowerY, angle = 0f)
@@ -248,16 +265,19 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
 
                     Button(onClick = {
                         WebSocketManager.sendEchoMessage("👋 Echo von Button")
-                    }) { Text("🗣️ Echo") }
+                    }) {
+                        Text("🗣️ Echo")
+                    }
 
                     Button(onClick = {
-                        carState.value = carState.value.copy(
-                            carX = (carState.value.carX + moveStep).coerceIn(
-                                streetLeft,
-                                streetRight
-                            )
-                        )
-                    }) { Text("➡️ Rechts") }
+                        println("🧱 Obstacle-Test per STOMP wird ausgelöst...")
+                        WebSocketManager.sendTestObstacle("test")
+                    }) {
+                        Text("📤 Obstacle senden (STOMP)")
+                    }
+
+
+
                 }
             }
 
