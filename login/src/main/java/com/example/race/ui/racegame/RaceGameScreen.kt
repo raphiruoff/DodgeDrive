@@ -76,14 +76,13 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
 
 
             LaunchedEffect(Unit) {
-                println("✅ connect() wird jetzt ausgeführt für gameId: $gameId")
-                WebSocketManager.connect(gameId = "test")
+                println("✅ Spielaufbau gestartet für gameId: $gameId")
 
-                // 1. WebSocket-Verbindung aufbauen (mit richtiger gameId)
+                // 1. WebSocket-Verbindung herstellen, damit Obstacle-Events empfangen werden können
                 WebSocketManager.connect(
                     gameId = gameId,
                     onObstacle = { obstacle ->
-                        println("📥 Obstacle im Client empfangen: $obstacle")
+                        println("📥 Obstacle empfangen: $obstacle")
                         obstacles.add(
                             Obstacle(
                                 x = obstacle.x * screenWidth,
@@ -93,60 +92,61 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                         )
                     }
                 )
-                delay(500) // Sicherheitszeit, um Subscriptions aufzubauen
 
+                // 2. Kleine Wartezeit, damit die Subscriptions vollständig aktiv sind
+                delay(500)
 
-                // Setze Auto auf Startposition
+                // 3. Spiel starten – Hindernisse werden jetzt vom Server über WebSocket gepusht
+                val (success, startAtServer, _) = AllClients.gameClient.startGameByGameId(gameId, username)
+                if (!success) {
+                    println("❌ Spielstart fehlgeschlagen für gameId: $gameId")
+                    return@LaunchedEffect
+                }
+
+                // 4. Auto auf Startposition setzen
                 carState.value = CarState(carX = centerX, carY = lowerY, angle = 0f)
 
-                // 1. Session abfragen, um zu sehen ob Spieler A oder B (kann für spätere Logs nützlich sein)
-                val session = AllClients.sessionClient.getSession(gameId)
-
-                // 2. Nur Spielzustand laden – KEIN Start mehr nötig hier!
-                val gameResponse = AllClients.gameClient.getGameBySession(gameId)
-
-                // 3. Starte nur, wenn startAt gesetzt ist
-                startAt = gameResponse?.startAt ?: 0L
-                println("🕒 Server startAt (gültig für beide Spieler): $startAt")
-
-                // 4. Countdown berechnen
-                val countdownTarget = startAt - 3000L
+                // 5. Countdown vorbereiten
+                println("🕒 Server startAt: $startAtServer")
+                val countdownTarget = startAtServer - 3000L
                 val countdownStartElapsed = SystemClock.elapsedRealtime() + (countdownTarget - System.currentTimeMillis())
-                val gameStartElapsedTarget = SystemClock.elapsedRealtime() + (startAt - System.currentTimeMillis())
+                val gameStartElapsedTarget = SystemClock.elapsedRealtime() + (startAtServer - System.currentTimeMillis())
 
-                // 5. Warten auf Countdown-Start
+                // 6. Warten auf Countdown-Beginn
                 while (SystemClock.elapsedRealtime() < countdownStartElapsed) {
                     delay(1)
                 }
 
-                // 6. Countdown anzeigen
+                // 7. Countdown anzeigen
                 for (i in 3 downTo 1) {
                     countdown = i
                     delay(1000L)
                 }
                 countdown = null
 
-                // 7. Warten bis zum echten Start
+                // 8. Warten bis Spielstart
                 while (SystemClock.elapsedRealtime() < gameStartElapsedTarget) {
                     delay(1)
                 }
 
-                // 8. Spiel starten
+                // 9. Spielstart lokal registrieren & Logging
                 gameStartElapsed = SystemClock.elapsedRealtime()
-                val now = System.currentTimeMillis()
-                val diff = now - startAt
-                println("🚦 Spieler $username startet lokal um $now (server startAt: $startAt, Differenz: ${diff}ms)")
+                val localStartTime = System.currentTimeMillis()
+                val diff = localStartTime - startAtServer
+                println("🚦 Spieler $username startet lokal um $localStartTime (startAt: $startAtServer, Differenz: ${diff}ms)")
 
                 AllClients.logClient.logEventWithTimestamp(
                     gameId = gameId,
                     username = username,
                     eventType = "game_start",
-                    originTimestamp = startAt
+                    originTimestamp = startAtServer
                 )
 
                 isStarted = true
                 gameStartDelay = SystemClock.elapsedRealtime() - gameStartTime
             }
+
+
 
 
 

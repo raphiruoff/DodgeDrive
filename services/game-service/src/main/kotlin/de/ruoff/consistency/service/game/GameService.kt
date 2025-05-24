@@ -61,17 +61,6 @@ class GameService(
             gameRepository.save(game)
 
             println("[GameService] Neues Spiel erstellt → gameId=$gameId, sessionId=$sessionId, startAt=$startAt")
-            game.obstacles.forEach { obstacle ->
-                println("📤 Sende obstacle → gameId=${gameId}, x=${obstacle.x}, timestamp=${obstacle.timestamp}")
-                gameEventProducer.sendObstacleSpawned(
-                    ObstacleSpawnedEvent(
-                        gameId = gameId,
-                        x = obstacle.x,
-                        timestamp = obstacle.timestamp
-                    )
-
-                )
-            }
             originTimestamp?.let {
                 gameLogProducer.send(
                     GameLogEvent(
