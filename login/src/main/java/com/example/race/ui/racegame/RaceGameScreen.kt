@@ -57,6 +57,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
     val renderTick = remember { mutableStateOf(0L) }
     var gameStartElapsed by remember { mutableStateOf(0L) }
     val previousOpponentScore = remember { mutableStateOf(0) }
+    val hasLoggedGameStart = remember { mutableStateOf(false) }
 
 
 
@@ -75,7 +76,8 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
             val streetRight = screenWidth * 5f / 6f - carWidth - offsetFix
             val centerX = (streetLeft + streetRight) / 2f
             val lowerY = screenHeight * 3f / 4f
-
+            val hasLoggedOpponentUpdate = remember { mutableSetOf<Long>() }
+            val hasExportedLogs = remember { mutableStateOf(false) }
 
             val pendingObstacles = remember { mutableStateListOf<ObstacleSpawnedEvent>() }
 
@@ -100,20 +102,21 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                         } else {
                             opponentScore.value = event.newScore
 
-                            AllClients.logClient.logEventWithTimestamp(
-                                gameId = gameId,
-                                username = username,
-                                eventType = "opponent_update",
-                                originTimestamp = event.timestamp
-                            )
+                            if (hasLoggedOpponentUpdate.add(event.timestamp)) {
+                                AllClients.logClient.logEventWithTimestamp(
+                                    gameId = gameId,
+                                    username = username,
+                                    eventType = "opponent_update",
+                                    originTimestamp = event.timestamp
+                                )
+                            }
+
                         }
 
                     }
                 )
 
 
-                // 2. Kleine Wartezeit, damit die Subscriptions vollständig aktiv sind
-                delay(500)
 
                 // 3. Spiel starten – Hindernisse werden jetzt vom Server über WebSocket gepusht
                 val (success, startAtServer, _) = AllClients.gameClient.startGameByGameId(
@@ -238,6 +241,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                                 toRemove.add(obstacle)
 
                                 val start = SystemClock.elapsedRealtime()
+                                val now = System.currentTimeMillis()
                                 val success = AllClients.gameClient.incrementScore(
                                     gameId = gameId,
                                     player = username,
@@ -247,11 +251,11 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
 
                                 val end = SystemClock.elapsedRealtime()
                                 if (success) {
-                                    AllClients.logClient.logEventWithDelay(
-                                        gameId,
-                                        username,
-                                        "score_updated",
-                                        end - start
+                                    AllClients.logClient.logEventWithTimestamp(
+                                        gameId = gameId,
+                                        username = username,
+                                        eventType = "score_updated",
+                                        originTimestamp = now
                                     )
                                 }
                             }
@@ -265,6 +269,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
 
             }
 
+            //UI
             ScrollingRaceTrack()
             Car(carState = carState.value)
             obstacles.forEach {
@@ -341,8 +346,10 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
             if (isGameOver.value) {
                 LaunchedEffect(true) {
                     AllClients.gameClient.finishGame(gameId, username)
-                    AllClients.logClient.exportLogs(gameId)
-
+                    if (isGameOver.value && !hasExportedLogs.value) {
+                        AllClients.logClient.exportLogs(gameId)
+                        hasExportedLogs.value = true
+                    }
                     // Warte auf finale Server-Auswertung
                     while (true) {
                         val game = AllClients.gameClient.getGame(gameId)
