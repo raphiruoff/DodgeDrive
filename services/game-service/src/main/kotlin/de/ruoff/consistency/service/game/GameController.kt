@@ -182,13 +182,14 @@ class GameController(
         val success = gameService.incrementScore(
             gameId = request.gameId,
             player = request.player,
-            obstacleTimestamp = request.obstacleTimestamp, // 🔧 HINZUGEFÜGT
+            obstacleId = request.obstacleId,
             originTimestamp = request.originTimestamp
         )
         val response = IncrementScoreResponse.newBuilder().setSuccess(success).build()
         responseObserver.onNext(response)
         responseObserver.onCompleted()
     }
+
 
 
 }

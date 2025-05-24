@@ -130,30 +130,47 @@ class GameService(
         return success
     }
 
-    fun incrementScore(gameId: String, player: String, obstacleTimestamp: Long, originTimestamp: Long?): Boolean {
-        val game = gameRepository.findById(gameId) ?: return false
+    fun incrementScore(gameId: String, player: String, obstacleId: String, originTimestamp: Long?): Boolean {
+        println("➡️ [incrementScore] Aufruf mit gameId=$gameId, player=$player, obstacleId=$obstacleId, originTimestamp=$originTimestamp")
 
-        // Skip if already counted
-        if (game.scoredObstacles.contains(obstacleTimestamp)) {
-            println("⚠️ Obstacle $obstacleTimestamp wurde bereits gezählt.")
+        val game = gameRepository.findById(gameId)
+        if (game == null) {
+            println("❌ Spiel $gameId nicht gefunden – Score wird nicht erhöht")
             return false
         }
 
-        game.scoredObstacles.add(obstacleTimestamp)
+        // Duplikat-Check anhand eindeutiger ID
+        if (game.scoredObstacleIds.contains(obstacleId)) {
+            println("⚠️ Obstacle $obstacleId wurde bereits gezählt. Aktueller Score von $player: ${game.scores[player] ?: 0}")
+            return false
+        }
+
+        // Hindernis-ID merken
+        game.scoredObstacleIds.add(obstacleId)
+
+        // Punktestand erhöhen
         val newScore = (game.scores[player] ?: 0) + 1
         game.scores[player] = newScore
         gameRepository.save(game)
 
+        println("✅ Punktestand aktualisiert → $player: $newScore (Obstacle: $obstacleId)")
+
+        // Logging
         originTimestamp?.let {
+            println("📝 Logging Event für $player mit originTimestamp=$it")
             gameLogProducer.send(GameLogEvent(gameId, player, "score_updated", it))
         }
 
+        // Event raussenden
+        println("📤 Sende ScoreUpdateEvent: $player → $newScore")
         gameEventProducer.sendScoreUpdate(
             ScoreUpdateEvent(gameId, player, newScore, System.currentTimeMillis())
         )
 
         return true
     }
+
+
 
 
 
@@ -211,15 +228,17 @@ class GameService(
 
         // 📤 Jetzt erst Hindernisse versenden (alle!)
         game.obstacles.forEach { obstacle ->
-            println("📤 Sende obstacle (startGame) → x=${obstacle.x}, timestamp=${obstacle.timestamp}")
+            println("📤 Sende obstacle (startGame) → id=${obstacle.id}, x=${obstacle.x}, timestamp=${obstacle.timestamp}")
             gameEventProducer.sendObstacleSpawned(
                 ObstacleSpawnedEvent(
                     gameId = gameId,
+                    id = obstacle.id,
                     x = obstacle.x,
                     timestamp = obstacle.timestamp
                 )
             )
         }
+
 
         // 📝 Spielstart loggen (als Event)
         gameLogProducer.send(

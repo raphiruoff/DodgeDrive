@@ -3,6 +3,7 @@ package de.ruoff.consistency.service.game
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import java.util.UUID
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY, property = "@class")
 data class GameModel @JsonCreator constructor(
@@ -16,7 +17,8 @@ data class GameModel @JsonCreator constructor(
     @JsonProperty("obstacles", required = false) val obstacles: MutableList<ObstacleModel> = mutableListOf(),
     @JsonProperty("startAt") var startAt: Long,
     @JsonProperty("finishedPlayers") var finishedPlayers: MutableSet<String> = mutableSetOf(),
-    @JsonProperty("scoredObstacles") val scoredObstacles: MutableSet<Long> = mutableSetOf()
+    @JsonProperty("scoredObstacleIds") val scoredObstacleIds: MutableSet<String> = mutableSetOf()
+
 
 )
 
@@ -27,6 +29,8 @@ enum class GameStatus {
 }
 
 data class ObstacleModel @JsonCreator constructor(
+    @JsonProperty("id") val id: String = UUID.randomUUID().toString(),
     @JsonProperty("timestamp") val timestamp: Long,
     @JsonProperty("x") val x: Float
 )
+

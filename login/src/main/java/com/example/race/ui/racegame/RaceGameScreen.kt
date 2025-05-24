@@ -171,6 +171,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
 
                         obstacles.add(
                             Obstacle(
+                                id = nextObstacle.id,
                                 x = nextObstacle.x * screenWidth,
                                 y = -50f,
                                 timestamp = nextObstacle.timestamp
@@ -219,7 +220,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                                 val success = AllClients.gameClient.incrementScore(
                                     gameId = gameId,
                                     player = username,
-                                    obstacleTimestamp = obstacle.timestamp,
+                                    obstacleId = obstacle.id,
                                     originTimestamp = System.currentTimeMillis()
                                 )
 

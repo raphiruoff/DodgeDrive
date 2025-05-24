@@ -40,12 +40,12 @@ class GameClient : BaseClient(overridePort = 9093) {
         }
     }
 
-    fun incrementScore(gameId: String, player: String, obstacleTimestamp: Long, originTimestamp: Long): Boolean {
+    fun incrementScore(gameId: String, player: String, obstacleId: String, originTimestamp: Long): Boolean {
         return try {
             val request = IncrementScoreRequest.newBuilder()
                 .setGameId(gameId)
                 .setPlayer(player)
-                .setObstacleTimestamp(obstacleTimestamp)
+                .setObstacleId(obstacleId) // NEU!
                 .setOriginTimestamp(originTimestamp)
                 .build()
             val response = stub.incrementScore(request)
@@ -55,6 +55,7 @@ class GameClient : BaseClient(overridePort = 9093) {
             false
         }
     }
+
 
 
 
