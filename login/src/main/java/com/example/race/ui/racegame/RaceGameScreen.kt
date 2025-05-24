@@ -99,7 +99,15 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                             playerScore = event.newScore
                         } else {
                             opponentScore.value = event.newScore
+
+                            AllClients.logClient.logEventWithTimestamp(
+                                gameId = gameId,
+                                username = username,
+                                eventType = "opponent_update",
+                                originTimestamp = event.timestamp
+                            )
                         }
+
                     }
                 )
 
@@ -163,31 +171,40 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
             }
 
 
+            val seenObstacleIds = remember { mutableSetOf<String>() }
+
             LaunchedEffect(Unit) {
                 while (true) {
                     val nextObstacle = pendingObstacles.minByOrNull { it.timestamp }
 
                     if (nextObstacle != null) {
                         val waitTime = nextObstacle.timestamp - System.currentTimeMillis()
-                        if (waitTime > 0) {
-                            delay(waitTime)
+                        if (waitTime > 0) delay(waitTime)
+
+                        // Nur loggen, wenn ID noch nicht verarbeitet wurde
+                        if (seenObstacleIds.add(nextObstacle.id)) {
+                            AllClients.logClient.logEventWithTimestamp(
+                                gameId = gameId,
+                                username = username,
+                                eventType = "obstacle_spawned",
+                                originTimestamp = nextObstacle.timestamp
+                            )
                         }
 
-                        obstacles.add(
-                            Obstacle(
-                                id = nextObstacle.id,
-                                x = nextObstacle.x * screenWidth,
-                                y = -50f,
-                                timestamp = nextObstacle.timestamp
-                            )
+                        val obstacle = Obstacle(
+                            id = nextObstacle.id,
+                            x = nextObstacle.x * screenWidth,
+                            y = -50f,
+                            timestamp = nextObstacle.timestamp
                         )
+                        obstacles.add(obstacle)
                         pendingObstacles.remove(nextObstacle)
                     } else {
-                        // Keine Obstacle-Ereignisse da – kurz warten
                         delay(10L)
                     }
                 }
             }
+
 
 
 

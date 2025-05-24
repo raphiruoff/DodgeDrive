@@ -40,36 +40,19 @@ class LogService(
 
         val logs = repository.findByGameId(gameId)
         if (logs.isEmpty()) {
-            println("Keine Logs für gameId=$gameId gefunden.")
+            println("❗ Keine Logs für gameId=$gameId gefunden.")
             return
         }
 
-        val sorted = logs.sortedBy { it.timestamp }
         val csv = StringBuilder()
-        csv.appendLine("gameId;username;eventType;ms")
+        csv.appendLine("gameId;username;eventType;originTimestamp;delayMs")
 
-        val base = sorted.find { it.eventType == "game_created" }?.originTimestamp?.toEpochMilli()
-        if (base == null) {
-            println("Kein game_created Event vorhanden")
-            return
+        logs.sortedBy { it.originTimestamp }.forEach { log ->
+            csv.appendLine("${log.gameId};${log.username};${log.eventType};${log.originTimestamp};${log.delayMs}")
         }
-
-        csv.appendLine("$gameId;${sorted.first().username};game_created;0")
-
-        val includedEvents = listOf("game_start", "obstacle_spawned", "opponent_update", "score_update", "opponent_score_visible")
-        includedEvents.forEach { event ->
-            sorted.filter { it.eventType == event && it.originTimestamp != null }
-                .groupBy { it.username }
-                .forEach { (user, entries) ->
-                    val first = entries.minByOrNull { it.originTimestamp!! }!!
-                    val diff = first.originTimestamp!!.toEpochMilli() - base
-                    csv.appendLine("${first.gameId};$user;$event;$diff")
-                }
-        }
-
-
 
         file.writeText(csv.toString())
-        println("📝 Exportierte Logdatei: ${file.absolutePath}")
+        println("✅ Exportierte vollständige Logdatei: ${file.absolutePath}")
     }
+
 }
