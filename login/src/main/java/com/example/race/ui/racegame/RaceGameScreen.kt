@@ -122,7 +122,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                             opponentScore.value = event.newScore
 
                             logEventOnceLocal(
-                                eventType = "opponent_update",
+                                eventType = "opponent_updated",
                                 scheduledAt = event.timestamp,
                                 score = event.newScore,
                                 opponentUsername = event.username
@@ -183,11 +183,17 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 val localStartTime = System.currentTimeMillis()
                 val diff = localStartTime - startAtServer
                 println("🚦 Spieler $username startet lokal um $localStartTime (startAt: $startAtServer, Differenz: ${diff}ms)")
+                val expectedStartAt = startAtServer + timeOffset
+                val latency = (gameStartElapsed - expectedStartAt).coerceAtLeast(0)
 
-                logEventOnceLocal(
+                AllClients.logClient.logEventWithFixedDelay(
+                    gameId = gameId,
+                    username = username,
                     eventType = "game_start",
-                    scheduledAt = startAtServer
+                    scheduledAt = startAtServer,
+                    delayMs = latency
                 )
+
 
                 isStarted = true
                 gameStartDelay = SystemClock.elapsedRealtime() - gameStartTime

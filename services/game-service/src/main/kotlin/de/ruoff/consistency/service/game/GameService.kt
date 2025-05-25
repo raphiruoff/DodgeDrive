@@ -245,17 +245,8 @@ class GameService(
             println("🚦 Spielstart vorbereitet → gameId=$gameId, startAt=$updatedStartAt (durch $callerUsername)")
 
             // 🟢 Logge game_start für beide Spieler mit originTimestamp = startAt
-            listOf(game.playerA, game.playerB).forEach { player ->
-                gameLogProducer.send(
-                    GameLogEvent(
-                        gameId = gameId,
-                        username = player,
-                        eventType = "game_start",
-                        originTimestamp = updatedStartAt,
-                        delayMs = 0L // Client misst seine eigene Verzögerung später
-                    )
-                )
-            }
+
+
 
             println("📤 Sende Hindernisse, weil $callerUsername hat Spielstart ausgelöst")
             game.obstacles.forEach { obstacle ->
