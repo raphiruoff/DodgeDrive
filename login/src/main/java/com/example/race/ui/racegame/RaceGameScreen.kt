@@ -237,23 +237,27 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                                 obstacle.scored = true
                                 toRemove.add(obstacle)
 
+                                val originTimestamp = System.currentTimeMillis()
                                 val start = SystemClock.elapsedRealtime()
+
+
                                 val success = AllClients.gameClient.incrementScore(
                                     gameId = gameId,
                                     player = username,
                                     obstacleId = obstacle.id,
-                                    originTimestamp = System.currentTimeMillis()
+                                    originTimestamp = originTimestamp
                                 )
 
-                                val end = SystemClock.elapsedRealtime()
                                 if (success) {
-                                    AllClients.logClient.logEventWithDelay(
-                                        gameId,
-                                        username,
-                                        "score_updated",
-                                        end - start
+                                    AllClients.logClient.logEventWithTimestamp(
+                                        gameId = gameId,
+                                        username = username,
+                                        eventType = "score_updated",
+                                        originTimestamp = originTimestamp
                                     )
                                 }
+
+
                             }
 
                         }
