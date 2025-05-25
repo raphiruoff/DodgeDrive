@@ -1,6 +1,5 @@
 package de.ruoff.consistency.service.game
 
-import de.ruoff.consistency.events.GameLogEvent
 import de.ruoff.consistency.events.ObstacleSpawnedEvent
 import de.ruoff.consistency.events.ScoreEvent
 import de.ruoff.consistency.events.ScoreUpdateEvent
@@ -48,8 +47,7 @@ class GameService(
             }
 
             val gameId = UUID.randomUUID().toString()
-            val startAt = System.currentTimeMillis() + 3000L
-            val obstacles = generateObstacles(gameId, startAt)
+            val obstacles = generateObstacles(gameId)  // Noch kein startAt nötig
 
             val game = GameModel(
                 gameId = gameId,
@@ -57,23 +55,12 @@ class GameService(
                 playerA = playerA,
                 playerB = playerB,
                 obstacles = obstacles.toMutableList(),
-                startAt = startAt
+                startAt = null
             )
 
             gameRepository.save(game)
 
-            println("[GameService] Neues Spiel erstellt → gameId=$gameId, sessionId=$sessionId, startAt=$startAt")
-            originTimestamp?.let {
-                gameLogProducer.send(
-                    GameLogEvent(
-                        gameId = gameId,
-                        username = playerA,
-                        eventType = "game_created",
-                        originTimestamp = it
-                    )
-                )
-            }
-
+            println("[GameService] Neues Spiel erstellt → gameId=$gameId, sessionId=$sessionId")
             return game
         } finally {
             redisLockService.releaseLock(lockKey)
@@ -84,8 +71,8 @@ class GameService(
 
 
 
-    private fun generateObstacles(gameId: String, startAt: Long): List<ObstacleModel> {
-        val obstacleCount = 40
+    private fun generateObstacles(gameId: String): List<ObstacleModel> {
+        val obstacleCount = 10
         val intervalMs = 3500L
         val lanes = listOf(0.33f, 0.5f, 0.66f)
         val seed = gameId.hashCode().toLong()
@@ -93,11 +80,12 @@ class GameService(
 
         return List(obstacleCount) { index ->
             ObstacleModel(
-                timestamp = startAt + index * intervalMs,
+                timestamp = index * intervalMs,
                 x = lanes[random.nextInt(lanes.size)]
             )
         }
     }
+
 
     fun getGame(gameId: String): GameModel? =
         gameRepository.findById(gameId)
@@ -117,14 +105,7 @@ class GameService(
         val success = gameRepository.updateScore(gameId, player, score)
 
         if (success && originTimestamp != null) {
-            gameLogProducer.send(
-                GameLogEvent(
-                    gameId = gameId,
-                    username = player,
-                    eventType = "score_updated",
-                    originTimestamp = originTimestamp
-                )
-            )
+
         }
 
         return success
@@ -151,18 +132,45 @@ class GameService(
         game.scores[player] = newScore
         gameRepository.save(game)
 
+        val now = System.currentTimeMillis()
+        val timestamp = originTimestamp ?: now
+
         println("✅ Punktestand für $player erhöht auf $newScore")
 
-        originTimestamp?.let {
-            gameLogProducer.send(GameLogEvent(gameId, player, "score_updated", it))
-        }
-
+        // 🟢 1. Sende ScoreUpdateEvent → an den Spieler selbst
         gameEventProducer.sendScoreUpdate(
-            ScoreUpdateEvent(gameId, player, newScore, System.currentTimeMillis())
+            ScoreUpdateEvent(gameId, player, newScore, timestamp)
+        )
+
+        // 🟢 2. Logge score_updated Event → für Spieler selbst
+        gameLogProducer.send(
+            de.ruoff.consistency.events.GameLogEvent(
+                gameId = gameId,
+                username = player,
+                eventType = "score_updated",
+                originTimestamp = timestamp,
+                score = newScore
+            )
+        )
+
+        // 🟢 3. Bestimme Gegner
+        val opponent = if (player == game.playerA) game.playerB else game.playerA
+
+        // 🟢 4. Logge opponent_update für Gegner
+        gameLogProducer.send(
+            de.ruoff.consistency.events.GameLogEvent(
+                gameId = gameId,
+                username = opponent,
+                eventType = "opponent_update",
+                originTimestamp = timestamp,
+                score = newScore,
+                opponentUsername = player
+            )
         )
 
         return true
     }
+
 
 
 
@@ -196,23 +204,20 @@ class GameService(
                 scoreProducer.send(ScoreEvent(username = updated.playerB, score = scoreB))
             }
 
-            gameLogProducer.send(
-                GameLogEvent(
-                    gameId = gameId,
-                    username = if (winner == "draw") "draw" else winner,
-                    eventType = "game_finished",
-                    originTimestamp = System.currentTimeMillis(),
-                    isWinner = winner != "draw"
-                )
-            )
+
         }
 
         return true
     }
 
 
-    fun startGame(gameId: String): Boolean {
+    fun startGame(gameId: String, callerUsername: String): Boolean {
         val game = gameRepository.findById(gameId) ?: return false
+
+        if (game.startAt != null) {
+            println("⚠️ Spiel wurde bereits gestartet → gameId=$gameId")
+            return false
+        }
 
         val updatedStartAt = System.currentTimeMillis() + 3000L
         game.startAt = updatedStartAt
@@ -220,32 +225,27 @@ class GameService(
 
         println("[GameService] Spielstart vorbereitet → gameId=$gameId, startAt=$updatedStartAt")
 
-        // 📤 Jetzt erst Hindernisse versenden (alle!)
-        game.obstacles.forEach { obstacle ->
-            println("📤 Sende obstacle (startGame) → id=${obstacle.id}, x=${obstacle.x}, timestamp=${obstacle.timestamp}")
-            gameEventProducer.sendObstacleSpawned(
-                ObstacleSpawnedEvent(
-                    gameId = gameId,
-                    id = obstacle.id,
-                    x = obstacle.x,
-                    timestamp = obstacle.timestamp
+        // ✅ Nur wenn `callerUsername == playerA` → Hindernisse versenden
+        if (callerUsername == game.playerA) {
+            println("📤 Sende Hindernisse, weil $callerUsername == playerA")
+            game.obstacles.forEach { obstacle ->
+                println("📤 Sende obstacle (startGame) → id=${obstacle.id}, x=${obstacle.x}, timestamp=${obstacle.timestamp}")
+                gameEventProducer.sendObstacleSpawned(
+                    ObstacleSpawnedEvent(
+                        gameId = gameId,
+                        id = obstacle.id,
+                        x = obstacle.x,
+                        timestamp = updatedStartAt + obstacle.timestamp
+                    )
                 )
-            )
+            }
+        } else {
+            println("🟡 Kein Versand von Hindernissen – $callerUsername ist nicht playerA")
         }
-
-
-        // 📝 Spielstart loggen (als Event)
-        gameLogProducer.send(
-            GameLogEvent(
-                gameId = gameId,
-                username = game.playerA, // oder auch "system" o. Ä.
-                eventType = "game_start",
-                originTimestamp = System.currentTimeMillis()
-            )
-        )
 
         return true
     }
+
 
 
 }

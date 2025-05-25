@@ -219,6 +219,11 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                                 eventType = "obstacle_spawned",
                                 scheduledAt = nextObstacle.timestamp
                             )
+                            logEventOnceLocal(
+                                eventType = "obstacle_spawned_latency",
+                                scheduledAt = nextObstacle.timestamp
+                            )
+
 
 
 
