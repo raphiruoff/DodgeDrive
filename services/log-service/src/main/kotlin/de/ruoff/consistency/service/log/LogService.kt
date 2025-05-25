@@ -69,12 +69,15 @@ class LogService(
                     "${log.username} updated their score to $scoreText"
                 "opponent_update" ->
                     "${log.username} saw opponent $opponentText had score $scoreText"
+                "opponent_update_latency" ->
+                    "${log.username} saw opponent $opponentText had score $scoreText (latency=${log.delayMs}ms)"
                 "obstacle_spawned" ->
                     "${log.username} rendered an obstacle"
                 "game_start" ->
                     "${log.username} started the game"
                 else -> ""
             }
+
 
             csv.appendLine(
                 "${log.gameId};" +

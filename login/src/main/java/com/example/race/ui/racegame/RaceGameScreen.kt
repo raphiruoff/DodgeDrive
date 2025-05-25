@@ -121,16 +121,15 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                         } else {
                             opponentScore.value = event.newScore
 
+                            // 📏 Nur Latenz messen, da das eigentliche Logging vom Backend kommt
                             logEventOnceLocal(
-                                eventType = "opponent_update",
+                                eventType = "opponent_update_latency",
                                 scheduledAt = event.timestamp,
                                 score = event.newScore,
                                 opponentUsername = event.username
                             )
-
-
-
                         }
+
 
                     }
                 )
