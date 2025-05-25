@@ -58,42 +58,26 @@ class LogService(
         }
 
         val csv = StringBuilder()
-        csv.appendLine("gameId;username;eventType;originTimestamp;delayMs;score;opponentUsername;description")
+        csv.appendLine("Event;Spieler;Geplant;Angezeigt;Latenz")
 
         logs.sortedBy { it.originTimestamp }.forEach { log ->
-            val scoreText = log.score?.toString() ?: "null"
-            val opponentText = log.opponentUsername ?: "null"
-
-            val description = when (log.eventType) {
-                "score_updated" ->
-                    "${log.username} updated their score to $scoreText"
-                "opponent_update" ->
-                    "${log.username} saw opponent $opponentText had score $scoreText"
-                "opponent_update_latency" ->
-                    "${log.username} saw opponent $opponentText had score $scoreText (latency=${log.delayMs}ms)"
-                "obstacle_spawned" ->
-                    "${log.username} rendered an obstacle"
-                "game_start" ->
-                    "${log.username} started the game"
-                else -> ""
-            }
-
+            val geplant = log.originTimestamp?.toString() ?: ""
+            val angezeigt = log.timestamp.toString()
+            val latenzen = log.delayMs.toString()
 
             csv.appendLine(
-                "${log.gameId};" +
+                "${log.eventType};" +
                         "${log.username};" +
-                        "${log.eventType};" +
-                        "${log.originTimestamp ?: ""};" +
-                        "${log.delayMs};" +
-                        "${log.score ?: ""};" +
-                        "${log.opponentUsername ?: ""};" +
-                        description
+                        "$geplant;" +
+                        "$angezeigt;" +
+                        "$latenzen"
             )
         }
 
         file.writeText(csv.toString())
-        println("✅ Exportierte vollständige Logdatei: ${file.absolutePath}")
+        println("✅ Exportierte vereinfachte Logdatei: ${file.absolutePath}")
     }
+
 
 
 

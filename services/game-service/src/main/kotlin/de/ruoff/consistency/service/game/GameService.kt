@@ -214,37 +214,55 @@ class GameService(
     fun startGame(gameId: String, callerUsername: String): Boolean {
         val game = gameRepository.findById(gameId) ?: return false
 
+        // 🟡 Wenn Spiel bereits gestartet wurde, einfach true zurückgeben
         if (game.startAt != null) {
             println("⚠️ Spiel wurde bereits gestartet → gameId=$gameId")
-            return false
+            return true
         }
 
         val updatedStartAt = System.currentTimeMillis() + 3000L
-        game.startAt = updatedStartAt
-        gameRepository.save(game)
 
-        println("[GameService] Spielstart vorbereitet → gameId=$gameId, startAt=$updatedStartAt")
+        // 🧠 Versuch: Atomare Speicherung mit Locking
+        val lockKey = "lock:game:$gameId"
+        if (!redisLockService.acquireLock(lockKey, 3000)) {
+            println("🔒 Spielstart wird gerade von anderem Spieler vorbereitet → gameId=$gameId")
+            return true // jemand anders setzt gerade startAt → ist okay
+        }
 
-        // ✅ Nur wenn `callerUsername == playerA` → Hindernisse versenden
-        if (callerUsername == game.playerA) {
-            println("📤 Sende Hindernisse, weil $callerUsername == playerA")
+        try {
+            // 🔁 Double-Check nach Lock
+            val freshGame = gameRepository.findById(gameId)
+            if (freshGame?.startAt != null) {
+                println("⚠️ Spiel wurde unterdessen gestartet → gameId=$gameId")
+                return true
+            }
+
+            game.startAt = updatedStartAt
+            gameRepository.save(game)
+
+            println("🚦 Spielstart vorbereitet → gameId=$gameId, startAt=$updatedStartAt (durch $callerUsername)")
+
+            // 🟢 Nur der Erste verschickt Hindernisse
+            println("📤 Sende Hindernisse, weil $callerUsername hat Spielstart ausgelöst")
             game.obstacles.forEach { obstacle ->
-                println("📤 Sende obstacle (startGame) → id=${obstacle.id}, x=${obstacle.x}, timestamp=${obstacle.timestamp}")
+                val spawnTime = updatedStartAt + obstacle.timestamp
+                println("📤 Sende obstacle → id=${obstacle.id}, x=${obstacle.x}, timestamp=$spawnTime")
                 gameEventProducer.sendObstacleSpawned(
                     ObstacleSpawnedEvent(
                         gameId = gameId,
                         id = obstacle.id,
                         x = obstacle.x,
-                        timestamp = updatedStartAt + obstacle.timestamp
+                        timestamp = spawnTime
                     )
                 )
             }
-        } else {
-            println("🟡 Kein Versand von Hindernissen – $callerUsername ist nicht playerA")
-        }
 
-        return true
+            return true
+        } finally {
+            redisLockService.releaseLock(lockKey)
+        }
     }
+
 
 
 

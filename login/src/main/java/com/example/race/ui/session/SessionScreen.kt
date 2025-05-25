@@ -12,7 +12,6 @@ import com.example.race.common.TokenUtils
 import com.example.race.data.network.AllClients
 import com.example.race.data.network.GameClient
 import com.example.race.data.network.TokenHolder
-import com.example.race.data.network.WebSocketManager
 import de.ruoff.consistency.service.session.Session
 import io.grpc.stub.StreamObserver
 import kotlinx.coroutines.Dispatchers
@@ -36,6 +35,7 @@ fun SessionScreen(
     var sessionId by remember { mutableStateOf<String?>(null) }
     var sessionPartner by remember { mutableStateOf<String?>(null) }
     var sessionStatus by remember { mutableStateOf<String?>(null) }
+    var session by remember { mutableStateOf<Session.GetSessionResponse?>(null) }
 
     var isLoading by remember { mutableStateOf(false) }
     var infoMessage by remember { mutableStateOf("") }

@@ -25,9 +25,8 @@ object WebSocketManager {
     fun connect(
         gameId: String,
         onObstacle: (ObstacleSpawnedEvent) -> Unit = { println("⚠️ Kein Obstacle-Callback gesetzt: $it") },
-        onScoreUpdate: (ScoreUpdateEvent) -> Unit = {}
-
-
+        onScoreUpdate: (ScoreUpdateEvent) -> Unit = {},
+        onConnected: () -> Unit = {}  // NEU: Callback wenn Verbindung erfolgreich
     ) {
         println("🌐 WS Init: $SOCKET_URL")
         stompClient = Stomp.over(Stomp.ConnectionProvider.OKHTTP, SOCKET_URL)
@@ -67,6 +66,7 @@ object WebSocketManager {
                             println("❌ WS Fehler bei Obstacle-Subscription: ${error.message}")
                         }
                     )
+
                     scoreDisposable = stompClient.topic("/topic/scores/$gameId").subscribe(
                         { frame ->
                             println("🟢 WS ScoreUpdate empfangen: ${frame.payload}")
@@ -82,7 +82,11 @@ object WebSocketManager {
                             println("❌ WS Fehler bei ScoreUpdate-Subscription: ${error.message}")
                         }
                     )
+
                     sendEchoMessage("Hallo Server 👋")
+
+                    // ✅ Callback aufrufen, wenn alles bereit ist
+                    onConnected()
                 }
 
                 LifecycleEvent.Type.ERROR -> println("❌ WS Lifecycle-Fehler: ${event.exception?.message}")
@@ -94,6 +98,7 @@ object WebSocketManager {
         println("🚀 WS Verbindung wird aufgebaut...")
         stompClient.connect()
     }
+
 
     fun disconnect() {
         if (::stompClient.isInitialized) {

@@ -58,6 +58,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
     var gameStartElapsed by remember { mutableStateOf(0L) }
     val previousOpponentScore = remember { mutableStateOf(0) }
     val loggedObstacleIds = remember { mutableSetOf<String>() }
+    var isWebSocketReady by remember { mutableStateOf(false) }
 
     val loggedKeys = remember { mutableSetOf<String>() }
 
@@ -103,7 +104,6 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
             LaunchedEffect(Unit) {
                 println("✅ Spielaufbau gestartet für gameId: $gameId")
 
-                // 1. WebSocket-Verbindung herstellen, damit Obstacle-Events empfangen werden können
                 WebSocketManager.connect(
                     gameId = gameId,
                     onObstacle = { obstacle ->
@@ -121,7 +121,6 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                         } else {
                             opponentScore.value = event.newScore
 
-                            // 📏 Nur Latenz messen, da das eigentliche Logging vom Backend kommt
                             logEventOnceLocal(
                                 eventType = "opponent_update_latency",
                                 scheduledAt = event.timestamp,
@@ -129,14 +128,21 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                                 opponentUsername = event.username
                             )
                         }
-
-
+                    },
+                    onConnected = {
+                        println("✅ WebSocket ist jetzt bereit!")
+                        isWebSocketReady = true
                     }
                 )
 
 
-                // 2. Kleine Wartezeit, damit die Subscriptions vollständig aktiv sind
-                delay(500)
+
+                // 2. Warte explizit, bis WebSocket verbunden & Subscriptions bereit sind
+                while (!isWebSocketReady) {
+                    println("⏳ Warte auf WebSocket readiness...")
+                    delay(100)
+                }
+
 
                 // 3. Spiel starten – Hindernisse werden jetzt vom Server über WebSocket gepusht
                 val (success, startAtServer, _) = AllClients.gameClient.startGameByGameId(
