@@ -20,7 +20,15 @@ class LogService(
         score: Int? = null,
         opponentUsername: String? = null
     ) {
+        val eventId = "$gameId-$eventType-$username-${originTimestamp ?: System.currentTimeMillis()}"
+
+        if (repository.existsById(eventId)) {
+            println("⚠️ Log bereits vorhanden → $eventId")
+            return
+        }
+
         val log = LogModel(
+            eventId = eventId,
             gameId = gameId,
             timestamp = Instant.now(),
             username = username,
@@ -32,6 +40,7 @@ class LogService(
         )
         repository.save(log)
     }
+
 
     fun exportLogsToCsv(gameId: String) {
         val logsDir = File("/app/export")

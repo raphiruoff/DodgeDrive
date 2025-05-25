@@ -59,6 +59,26 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
     val previousOpponentScore = remember { mutableStateOf(0) }
     val loggedObstacleIds = remember { mutableSetOf<String>() }
 
+    val loggedKeys = remember { mutableSetOf<String>() }
+
+    fun logEventOnceLocal(
+        eventType: String,
+        scheduledAt: Long,
+        score: Int? = null,
+        opponentUsername: String? = null
+    ): Boolean {
+        val key = "$eventType-$username-$scheduledAt"
+        if (!loggedKeys.add(key)) return false
+
+        return AllClients.logClient.logEventWithDelay(
+            gameId = gameId,
+            username = username,
+            eventType = eventType,
+            scheduledAt = scheduledAt,
+            score = score,
+            opponentUsername = opponentUsername
+        )
+    }
 
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -101,14 +121,14 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                         } else {
                             opponentScore.value = event.newScore
 
-                            AllClients.logClient.logEventWithDelay(
-                                gameId = gameId,
-                                username = username,
+                            logEventOnceLocal(
                                 eventType = "opponent_update",
                                 scheduledAt = event.timestamp,
                                 score = event.newScore,
                                 opponentUsername = event.username
                             )
+
+
 
                         }
 
@@ -163,12 +183,11 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 val diff = localStartTime - startAtServer
                 println("🚦 Spieler $username startet lokal um $localStartTime (startAt: $startAtServer, Differenz: ${diff}ms)")
 
-                AllClients.logClient.logEventWithDelay(
-                    gameId = gameId,
-                    username = username,
+                logEventOnceLocal(
                     eventType = "game_start",
                     scheduledAt = startAtServer
                 )
+
 
 
                 isStarted = true
@@ -197,12 +216,12 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                             )
                             obstacles.add(obstacle)
 
-                            AllClients.logClient.logEventWithDelay(
-                                gameId = gameId,
-                                username = username,
+                            logEventOnceLocal(
                                 eventType = "obstacle_spawned",
                                 scheduledAt = nextObstacle.timestamp
                             )
+
+
 
                         }
 
@@ -258,13 +277,13 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                                 )
 
                                 if (success) {
-                                    AllClients.logClient.logEventWithDelay(
-                                        gameId = gameId,
-                                        username = username,
+                                    logEventOnceLocal(
                                         eventType = "score_updated",
                                         scheduledAt = originTimestamp,
                                         score = playerScore
                                     )
+
+
 
                                 }
 

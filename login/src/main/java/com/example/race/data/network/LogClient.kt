@@ -3,6 +3,7 @@ package com.example.race.data.network
 import android.util.Log
 import de.ruoff.consistency.service.logging.*
 import io.grpc.ClientInterceptors
+import java.security.MessageDigest
 
 class LogClient : BaseClient(overridePort = 9098) {
 
@@ -20,10 +21,13 @@ class LogClient : BaseClient(overridePort = 9098) {
     ): Boolean {
         val now = System.currentTimeMillis()
         val delayMs = now - scheduledAt
-        println("📡 logEventWithDelay: $eventType, delay=$delayMs, score=$score, opponent=$opponentUsername")
+        val eventId = generateEventId(gameId, eventType, username, scheduledAt)
+
+        println("📡 logEventWithDelay: $eventType, delay=$delayMs, id=$eventId")
 
         return try {
             val requestBuilder = LogEventRequest.newBuilder()
+                .setEventId(eventId)
                 .setGameId(gameId)
                 .setUsername(username)
                 .setEventType(eventType)
@@ -34,13 +38,14 @@ class LogClient : BaseClient(overridePort = 9098) {
             opponentUsername?.let { requestBuilder.opponentUsername = it }
 
             val response = stub.logEvent(requestBuilder.build())
-            Log.d("LogClient", "✅ Event logged: $eventType delay=$delayMs ms")
             response.success
         } catch (e: Exception) {
-            Log.e("LogClient", "❌ Failed to log event: $eventType", e)
+            Log.e("LogClient", "❌ Failed to log event", e)
             false
         }
     }
+
+
 
     fun exportLogs(gameId: String): Boolean {
         return try {
@@ -56,4 +61,31 @@ class LogClient : BaseClient(overridePort = 9098) {
             false
         }
     }
+
+    private val loggedKeys = mutableSetOf<String>()
+
+    fun logEventOnce(
+        gameId: String,
+        username: String,
+        eventType: String,
+        scheduledAt: Long,
+        score: Int? = null,
+        opponentUsername: String? = null
+    ): Boolean {
+        val key = "$eventType-$username-${scheduledAt}"
+        if (loggedKeys.contains(key)) {
+            return false
+        }
+        loggedKeys.add(key)
+
+        return logEventWithDelay(gameId, username, eventType, scheduledAt, score, opponentUsername)
+    }
+    private fun generateEventId(gameId: String, eventType: String, username: String, originTimestamp: Long): String {
+        val raw = "$gameId-$eventType-$username-$originTimestamp"
+        return MessageDigest.getInstance("SHA-256")
+            .digest(raw.toByteArray())
+            .joinToString("") { "%02x".format(it) }
+    }
+
+
 }

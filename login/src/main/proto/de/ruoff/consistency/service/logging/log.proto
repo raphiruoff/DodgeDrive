@@ -9,13 +9,15 @@ service LoggingService {
 }
 
 message LogEventRequest {
-    string gameId = 1;
-    string username = 2;
-    string eventType = 3;
-    int64 delayMs = 4;
-    int64 originTimestamp = 5;
-    int32 score = 6;
-    string opponentUsername = 7; }
+    string eventId = 1;
+    string gameId = 2;
+    string username = 3;
+    string eventType = 4;
+    int64 delayMs = 5;
+    int64 originTimestamp = 6;
+    int32 score = 7;
+    string opponentUsername = 8;
+}
 
 message LogEventResponse {
     bool success = 1;

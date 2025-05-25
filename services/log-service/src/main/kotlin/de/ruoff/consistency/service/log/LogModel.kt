@@ -6,7 +6,7 @@ import java.time.Instant
 
 @Document("logs")
 data class LogModel(
-    @Id val id: String? = null,
+    @Id val eventId: String,
     val gameId: String,
     val timestamp: Instant,
     val username: String,
