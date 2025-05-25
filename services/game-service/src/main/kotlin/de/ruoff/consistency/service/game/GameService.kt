@@ -115,14 +115,14 @@ class GameService(
         println("➡️ [incrementScore] Aufruf mit gameId=$gameId, player=$player, obstacleId=$obstacleId")
 
         val game = gameRepository.findById(gameId) ?: run {
-            println("❌ Spiel $gameId nicht gefunden")
+            println("Spiel $gameId nicht gefunden")
             return false
         }
 
         val playerSet = game.scoredByPlayer.getOrPut(player) { mutableSetOf() }
 
         if (playerSet.contains(obstacleId)) {
-            println("⚠️ Spieler $player hat Hindernis $obstacleId schon gewertet.")
+            println("Spieler $player hat Hindernis $obstacleId schon gewertet.")
             return false
         }
 
@@ -135,14 +135,14 @@ class GameService(
         val now = System.currentTimeMillis()
         val timestamp = originTimestamp ?: now
 
-        println("✅ Punktestand für $player erhöht auf $newScore")
+        println("Punktestand für $player erhöht auf $newScore")
 
-        // 🟢 1. Sende ScoreUpdateEvent → an den Spieler selbst
+        // 1. Sende ScoreUpdateEvent → an den Spieler selbst
         gameEventProducer.sendScoreUpdate(
             ScoreUpdateEvent(gameId, player, newScore, timestamp)
         )
 
-        // 🟢 2. Logge score_updated Event → für Spieler selbst
+        //  2. Logge score_updated Event → für Spieler selbst
         gameLogProducer.send(
             de.ruoff.consistency.events.GameLogEvent(
                 gameId = gameId,
@@ -214,7 +214,6 @@ class GameService(
     fun startGame(gameId: String, callerUsername: String): Boolean {
         val game = gameRepository.findById(gameId) ?: return false
 
-        // 🟡 Wenn Spiel bereits gestartet wurde, einfach true zurückgeben
         if (game.startAt != null) {
             println("⚠️ Spiel wurde bereits gestartet → gameId=$gameId")
             return true
@@ -222,15 +221,13 @@ class GameService(
 
         val updatedStartAt = System.currentTimeMillis() + 3000L
 
-        // 🧠 Versuch: Atomare Speicherung mit Locking
         val lockKey = "lock:game:$gameId"
         if (!redisLockService.acquireLock(lockKey, 3000)) {
-            println("🔒 Spielstart wird gerade von anderem Spieler vorbereitet → gameId=$gameId")
+            println(" Spielstart wird gerade von anderem Spieler vorbereitet → gameId=$gameId")
             return true // jemand anders setzt gerade startAt → ist okay
         }
 
         try {
-            // 🔁 Double-Check nach Lock
             val freshGame = gameRepository.findById(gameId)
             if (freshGame?.startAt != null) {
                 println("⚠️ Spiel wurde unterdessen gestartet → gameId=$gameId")
@@ -242,7 +239,6 @@ class GameService(
 
             println("🚦 Spielstart vorbereitet → gameId=$gameId, startAt=$updatedStartAt (durch $callerUsername)")
 
-            // 🟢 Nur der Erste verschickt Hindernisse
             println("📤 Sende Hindernisse, weil $callerUsername hat Spielstart ausgelöst")
             game.obstacles.forEach { obstacle ->
                 val spawnTime = updatedStartAt + obstacle.timestamp

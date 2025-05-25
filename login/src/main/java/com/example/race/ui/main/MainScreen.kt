@@ -104,19 +104,6 @@ fun MainScreen(
 
         Spacer(modifier = Modifier.weight(1f))
 
-        Button(
-            onClick = {
-                if (username != null) {
-                    onNavigateToRaceGame("dummy-game-id", username)
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Text("🚗 Spiel starten")
-        }
 
         Button(
             onClick = {

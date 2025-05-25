@@ -20,10 +20,12 @@ class LogClient : BaseClient(overridePort = 9098) {
         opponentUsername: String? = null
     ): Boolean {
         val now = System.currentTimeMillis()
-        val delayMs = now - scheduledAt
+        val rawDelay = now - scheduledAt
+        val delayMs = if (rawDelay < 0) 0 else rawDelay
+
         val eventId = generateEventId(gameId, eventType, username, scheduledAt)
 
-        println("📡 logEventWithDelay: $eventType, delay=$delayMs, id=$eventId")
+        println("📡 logEventWithDelay: $eventType, delay=$delayMs ms, id=$eventId (now=$now, scheduledAt=$scheduledAt)")
 
         return try {
             val requestBuilder = LogEventRequest.newBuilder()
@@ -44,6 +46,7 @@ class LogClient : BaseClient(overridePort = 9098) {
             false
         }
     }
+
 
 
 

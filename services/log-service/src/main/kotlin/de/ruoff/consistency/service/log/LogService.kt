@@ -50,8 +50,15 @@ class LogService(
         val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss", Locale.GERMANY)
         val formattedTime = formatter.format(timestamp)
         val file = File(logsDir, "log_export_${gameId}_$formattedTime.csv")
+        val relevantEvents = setOf(
+            "game_start",
+            "obstacle_spawned_latency",
+            "score_updated",
+            "opponent_update_latency"
+        )
 
         val logs = repository.findByGameId(gameId)
+            .filter { it.eventType in relevantEvents }
         if (logs.isEmpty()) {
             println("❗ Keine Logs für gameId=$gameId gefunden.")
             return
