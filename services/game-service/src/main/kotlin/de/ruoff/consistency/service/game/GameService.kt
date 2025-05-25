@@ -1,5 +1,6 @@
 package de.ruoff.consistency.service.game
 
+import de.ruoff.consistency.events.GameLogEvent
 import de.ruoff.consistency.events.ObstacleSpawnedEvent
 import de.ruoff.consistency.events.ScoreEvent
 import de.ruoff.consistency.events.ScoreUpdateEvent
@@ -134,6 +135,7 @@ class GameService(
 
         val now = System.currentTimeMillis()
         val timestamp = originTimestamp ?: now
+        val delayMs = originTimestamp?.let { now - it } ?: 0L
 
         println("Punktestand für $player erhöht auf $newScore")
 
@@ -142,27 +144,29 @@ class GameService(
             ScoreUpdateEvent(gameId, player, newScore, timestamp)
         )
 
-        //  2. Logge score_updated Event → für Spieler selbst
+        // 2. Logge score_updated Event → für Spieler selbst
         gameLogProducer.send(
-            de.ruoff.consistency.events.GameLogEvent(
+            GameLogEvent(
                 gameId = gameId,
                 username = player,
                 eventType = "score_updated",
                 originTimestamp = timestamp,
+                delayMs = delayMs,
                 score = newScore
             )
         )
 
-        // 🟢 3. Bestimme Gegner
+        // 3. Gegner bestimmen
         val opponent = if (player == game.playerA) game.playerB else game.playerA
 
-        // 🟢 4. Logge opponent_update für Gegner
+        // 4. Logge opponent_update für Gegner
         gameLogProducer.send(
-            de.ruoff.consistency.events.GameLogEvent(
+            GameLogEvent(
                 gameId = gameId,
                 username = opponent,
                 eventType = "opponent_update",
                 originTimestamp = timestamp,
+                delayMs = delayMs,
                 score = newScore,
                 opponentUsername = player
             )
@@ -170,6 +174,7 @@ class GameService(
 
         return true
     }
+
 
 
 
@@ -239,6 +244,19 @@ class GameService(
 
             println("🚦 Spielstart vorbereitet → gameId=$gameId, startAt=$updatedStartAt (durch $callerUsername)")
 
+            // 🟢 Logge game_start für beide Spieler mit originTimestamp = startAt
+            listOf(game.playerA, game.playerB).forEach { player ->
+                gameLogProducer.send(
+                    GameLogEvent(
+                        gameId = gameId,
+                        username = player,
+                        eventType = "game_start",
+                        originTimestamp = updatedStartAt,
+                        delayMs = 0L // Client misst seine eigene Verzögerung später
+                    )
+                )
+            }
+
             println("📤 Sende Hindernisse, weil $callerUsername hat Spielstart ausgelöst")
             game.obstacles.forEach { obstacle ->
                 val spawnTime = updatedStartAt + obstacle.timestamp
@@ -258,6 +276,7 @@ class GameService(
             redisLockService.releaseLock(lockKey)
         }
     }
+
 
 
 
