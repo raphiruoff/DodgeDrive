@@ -45,6 +45,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
     val isGameOver = remember { mutableStateOf(false) }
     val isOpponentGameOver = remember { mutableStateOf(false) }
     val gameResultMessage = remember { mutableStateOf<String?>(null) }
+    val timeOffset = remember { SystemClock.elapsedRealtime() - System.currentTimeMillis() }
 
     val gameStartTime = remember { SystemClock.elapsedRealtime() }
     var gameStartDelay by remember { mutableStateOf(0L) }
@@ -157,7 +158,6 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
 
                 // 5. Countdown vorbereiten mit korrekter Zeitumrechnung
                 println("🕒 Server startAt: $startAtServer")
-                val timeOffset = SystemClock.elapsedRealtime() - System.currentTimeMillis()
                 val gameStartElapsedTarget = startAtServer + timeOffset
                 val countdownStartElapsed = gameStartElapsedTarget - 3000L
 
