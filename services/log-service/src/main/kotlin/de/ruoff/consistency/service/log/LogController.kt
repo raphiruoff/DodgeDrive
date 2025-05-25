@@ -24,12 +24,17 @@ class LogController(
         try {
             val origin = if (request.originTimestamp > 0) request.originTimestamp else System.currentTimeMillis()
 
+            val score = if (request.score != 0) request.score else null
+            val opponentUsername = if (request.opponentUsername.isNotBlank()) request.opponentUsername else null
+
             val kafkaEvent = GameLogEvent(
                 gameId = request.gameId,
                 username = request.username,
                 eventType = request.eventType,
                 originTimestamp = origin,
-                isWinner = false
+                isWinner = false,
+                score = score,
+                opponentUsername = opponentUsername
             )
 
             println("📤 Sende an Kafka: $kafkaEvent")
@@ -40,7 +45,9 @@ class LogController(
                 username = request.username,
                 eventType = request.eventType,
                 delayMs = request.delayMs,
-                originTimestamp = origin
+                originTimestamp = origin,
+                score = score,
+                opponentUsername = opponentUsername
             )
 
             val response = LogEventResponse.newBuilder()
@@ -73,3 +80,4 @@ class LogController(
         responseObserver.onCompleted()
     }
 }
+

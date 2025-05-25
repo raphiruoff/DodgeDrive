@@ -57,6 +57,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
     val renderTick = remember { mutableStateOf(0L) }
     var gameStartElapsed by remember { mutableStateOf(0L) }
     val previousOpponentScore = remember { mutableStateOf(0) }
+    val loggedObstacleIds = remember { mutableSetOf<String>() }
 
 
 
@@ -100,12 +101,15 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                         } else {
                             opponentScore.value = event.newScore
 
-                            AllClients.logClient.logEventWithTimestamp(
+                            AllClients.logClient.logEventWithDelay(
                                 gameId = gameId,
                                 username = username,
                                 eventType = "opponent_update",
-                                originTimestamp = event.timestamp
+                                scheduledAt = event.timestamp,
+                                score = event.newScore,
+                                opponentUsername = event.username
                             )
+
                         }
 
                     }
@@ -159,16 +163,18 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 val diff = localStartTime - startAtServer
                 println("🚦 Spieler $username startet lokal um $localStartTime (startAt: $startAtServer, Differenz: ${diff}ms)")
 
-                AllClients.logClient.logEventWithTimestamp(
+                AllClients.logClient.logEventWithDelay(
                     gameId = gameId,
                     username = username,
                     eventType = "game_start",
-                    originTimestamp = startAtServer
+                    scheduledAt = startAtServer
                 )
+
 
                 isStarted = true
                 gameStartDelay = SystemClock.elapsedRealtime() - gameStartTime
             }
+
 
 
             val seenObstacleIds = remember { mutableSetOf<String>() }
@@ -181,29 +187,32 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                         val waitTime = nextObstacle.timestamp - System.currentTimeMillis()
                         if (waitTime > 0) delay(waitTime)
 
-                        // Nur loggen, wenn ID noch nicht verarbeitet wurde
+                        // 🟢 Nur anzeigen + loggen, wenn die ID noch nicht verarbeitet wurde
                         if (seenObstacleIds.add(nextObstacle.id)) {
-                            AllClients.logClient.logEventWithTimestamp(
+                            val obstacle = Obstacle(
+                                id = nextObstacle.id,
+                                x = nextObstacle.x * screenWidth,
+                                y = -50f,
+                                timestamp = nextObstacle.timestamp
+                            )
+                            obstacles.add(obstacle)
+
+                            AllClients.logClient.logEventWithDelay(
                                 gameId = gameId,
                                 username = username,
                                 eventType = "obstacle_spawned",
-                                originTimestamp = nextObstacle.timestamp
+                                scheduledAt = nextObstacle.timestamp
                             )
+
                         }
 
-                        val obstacle = Obstacle(
-                            id = nextObstacle.id,
-                            x = nextObstacle.x * screenWidth,
-                            y = -50f,
-                            timestamp = nextObstacle.timestamp
-                        )
-                        obstacles.add(obstacle)
                         pendingObstacles.remove(nextObstacle)
                     } else {
                         delay(10L)
                     }
                 }
             }
+
 
 
 
@@ -249,12 +258,14 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                                 )
 
                                 if (success) {
-                                    AllClients.logClient.logEventWithTimestamp(
+                                    AllClients.logClient.logEventWithDelay(
                                         gameId = gameId,
                                         username = username,
                                         eventType = "score_updated",
-                                        originTimestamp = originTimestamp
+                                        scheduledAt = originTimestamp,
+                                        score = playerScore
                                     )
+
                                 }
 
 

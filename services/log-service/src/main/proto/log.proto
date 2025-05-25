@@ -14,7 +14,8 @@ message LogEventRequest {
     string eventType = 3;
     int64 delayMs = 4;
     int64 originTimestamp = 5;
-}
+    int32 score = 6;
+    string opponentUsername = 7; }
 
 message LogEventResponse {
     bool success = 1;

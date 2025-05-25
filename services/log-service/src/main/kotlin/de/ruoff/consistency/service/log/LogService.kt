@@ -16,7 +16,9 @@ class LogService(
         username: String,
         eventType: String,
         delayMs: Long,
-        originTimestamp: Long?
+        originTimestamp: Long?,
+        score: Int? = null,
+        opponentUsername: String? = null
     ) {
         val log = LogModel(
             gameId = gameId,
@@ -24,7 +26,9 @@ class LogService(
             username = username,
             eventType = eventType,
             delayMs = delayMs,
-            originTimestamp = originTimestamp?.let { Instant.ofEpochMilli(it) }
+            originTimestamp = originTimestamp?.let { Instant.ofEpochMilli(it) },
+            score = score,
+            opponentUsername = opponentUsername
         )
         repository.save(log)
     }
@@ -45,14 +49,41 @@ class LogService(
         }
 
         val csv = StringBuilder()
-        csv.appendLine("gameId;username;eventType;originTimestamp;delayMs")
+        csv.appendLine("gameId;username;eventType;originTimestamp;delayMs;score;opponentUsername;description")
 
         logs.sortedBy { it.originTimestamp }.forEach { log ->
-            csv.appendLine("${log.gameId};${log.username};${log.eventType};${log.originTimestamp};${log.delayMs}")
+            val scoreText = log.score?.toString() ?: "null"
+            val opponentText = log.opponentUsername ?: "null"
+
+            val description = when (log.eventType) {
+                "score_updated" ->
+                    "${log.username} updated their score to $scoreText"
+                "opponent_update" ->
+                    "${log.username} saw opponent $opponentText had score $scoreText"
+                "obstacle_spawned" ->
+                    "${log.username} rendered an obstacle"
+                "game_start" ->
+                    "${log.username} started the game"
+                else -> ""
+            }
+
+            csv.appendLine(
+                "${log.gameId};" +
+                        "${log.username};" +
+                        "${log.eventType};" +
+                        "${log.originTimestamp ?: ""};" +
+                        "${log.delayMs};" +
+                        "${log.score ?: ""};" +
+                        "${log.opponentUsername ?: ""};" +
+                        description
+            )
         }
 
         file.writeText(csv.toString())
         println("✅ Exportierte vollständige Logdatei: ${file.absolutePath}")
     }
+
+
+
 
 }

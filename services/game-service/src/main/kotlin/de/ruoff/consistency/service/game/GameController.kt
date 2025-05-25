@@ -51,16 +51,19 @@ class GameController(
             val game = gameService.getGame(request.gameId)
                 ?: throw IllegalArgumentException("Kein Spiel mit ID ${request.gameId} gefunden")
 
-            gameService.startGame(game.gameId)
+            gameService.startGame(game.gameId, request.username)
 
             val updatedGame = gameService.getGame(game.gameId)
                 ?: throw IllegalStateException("Spiel konnte nach Start nicht geladen werden")
 
+            val startAt = requireNotNull(updatedGame.startAt) { "Startzeitpunkt darf nicht null sein nach Spielstart" }
+
             val response = StartGameResponse.newBuilder()
                 .setSuccess(true)
-                .setStartAt(updatedGame.startAt)
+                .setStartAt(startAt)
                 .setGameId(updatedGame.gameId)
                 .build()
+
 
             responseObserver.onNext(response)
             responseObserver.onCompleted()

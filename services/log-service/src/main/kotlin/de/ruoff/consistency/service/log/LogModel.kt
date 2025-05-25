@@ -12,5 +12,7 @@ data class LogModel(
     val username: String,
     val eventType: String,
     val delayMs: Long,
-    val originTimestamp: Instant? = null
+    val originTimestamp: Instant? = null,
+    var score: Int? = null,
+    var opponentUsername: String? = null
 )

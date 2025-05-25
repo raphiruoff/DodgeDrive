@@ -32,8 +32,11 @@ class LogConsumer(
             username = event.username,
             eventType = event.eventType,
             delayMs = delay,
-            originTimestamp = origin
+            originTimestamp = origin,
+            score = event.score,
+            opponentUsername = event.opponentUsername
         )
+
 
         if (event.eventType == "game_finished") {
             println("🏁 Gewinner ${event.username} triggert Log-Export für ${event.gameId}")

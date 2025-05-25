@@ -5,5 +5,8 @@ data class GameLogEvent(
     val username: String,
     val eventType: String,
     val originTimestamp: Long?,
-    val isWinner: Boolean = false
+    val isWinner: Boolean = false,
+    val score: Int? = null,
+    val opponentUsername: String? = null
 )
+
