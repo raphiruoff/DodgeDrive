@@ -19,7 +19,7 @@ class GameService(
     private val gameEventProducer: GameEventProducer,
 
 
-) {
+    ) {
 
     fun createGame(
         sessionId: String,
@@ -149,7 +149,7 @@ class GameService(
             GameLogEvent(
                 gameId = gameId,
                 username = player,
-                eventType = "score_updated",
+                eventType = "score_update_latency",
                 originTimestamp = timestamp,
                 delayMs = delayMs,
                 score = newScore
@@ -164,7 +164,7 @@ class GameService(
             GameLogEvent(
                 gameId = gameId,
                 username = opponent,
-                eventType = "opponent_update",
+                eventType = "opponent_update_latency",
                 originTimestamp = timestamp,
                 delayMs = delayMs,
                 score = newScore,

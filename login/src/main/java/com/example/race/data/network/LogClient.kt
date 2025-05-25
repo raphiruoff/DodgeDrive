@@ -89,6 +89,39 @@ class LogClient : BaseClient(overridePort = 9098) {
             .digest(raw.toByteArray())
             .joinToString("") { "%02x".format(it) }
     }
+    fun logEventWithFixedDelay(
+        gameId: String,
+        username: String,
+        eventType: String,
+        scheduledAt: Long,
+        delayMs: Long,
+        score: Int? = null,
+        opponentUsername: String? = null
+    ): Boolean {
+        val eventId = generateEventId(gameId, eventType, username, scheduledAt)
+
+        println("📡 FIXED LOG: $eventType, delay=$delayMs ms, id=$eventId")
+
+        return try {
+            val requestBuilder = LogEventRequest.newBuilder()
+                .setEventId(eventId)
+                .setGameId(gameId)
+                .setUsername(username)
+                .setEventType(eventType)
+                .setDelayMs(delayMs)
+                .setOriginTimestamp(scheduledAt)
+
+            score?.let { requestBuilder.score = it }
+            opponentUsername?.let { requestBuilder.opponentUsername = it }
+
+            val response = stub.logEvent(requestBuilder.build())
+            response.success
+        } catch (e: Exception) {
+            Log.e("LogClient", "❌ Failed to log event", e)
+            false
+        }
+    }
+
 
 
 }

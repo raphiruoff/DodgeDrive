@@ -122,11 +122,12 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                             opponentScore.value = event.newScore
 
                             logEventOnceLocal(
-                                eventType = "opponent_update_latency",
+                                eventType = "opponent_update",
                                 scheduledAt = event.timestamp,
                                 score = event.newScore,
                                 opponentUsername = event.username
                             )
+
                         }
                     },
                     onConnected = {
@@ -135,14 +136,11 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                     }
                 )
 
-
-
                 // 2. Warte explizit, bis WebSocket verbunden & Subscriptions bereit sind
                 while (!isWebSocketReady) {
                     println("⏳ Warte auf WebSocket readiness...")
                     delay(100)
                 }
-
 
                 // 3. Spiel starten – Hindernisse werden jetzt vom Server über WebSocket gepusht
                 val (success, startAtServer, _) = AllClients.gameClient.startGameByGameId(
@@ -157,13 +155,11 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 // 4. Auto auf Startposition setzen
                 carState.value = CarState(carX = centerX, carY = lowerY, angle = 0f)
 
-                // 5. Countdown vorbereiten
+                // 5. Countdown vorbereiten mit korrekter Zeitumrechnung
                 println("🕒 Server startAt: $startAtServer")
-                val countdownTarget = startAtServer - 3000L
-                val countdownStartElapsed =
-                    SystemClock.elapsedRealtime() + (countdownTarget - System.currentTimeMillis())
-                val gameStartElapsedTarget =
-                    SystemClock.elapsedRealtime() + (startAtServer - System.currentTimeMillis())
+                val timeOffset = SystemClock.elapsedRealtime() - System.currentTimeMillis()
+                val gameStartElapsedTarget = startAtServer + timeOffset
+                val countdownStartElapsed = gameStartElapsedTarget - 3000L
 
                 // 6. Warten auf Countdown-Beginn
                 while (SystemClock.elapsedRealtime() < countdownStartElapsed) {
@@ -192,8 +188,6 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                     eventType = "game_start",
                     scheduledAt = startAtServer
                 )
-
-
 
                 isStarted = true
                 gameStartDelay = SystemClock.elapsedRealtime() - gameStartTime
@@ -287,7 +281,9 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                                 )
 
                                 if (success) {
-                                    logEventOnceLocal(
+                                    AllClients.logClient.logEventOnce(
+                                        gameId = gameId,
+                                        username = username,
                                         eventType = "score_updated",
                                         scheduledAt = originTimestamp,
                                         score = playerScore

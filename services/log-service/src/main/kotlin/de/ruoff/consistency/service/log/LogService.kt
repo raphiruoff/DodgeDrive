@@ -53,8 +53,10 @@ class LogService(
         val relevantEvents = setOf(
             "game_start",
             "obstacle_spawned_latency",
+            "score_update_latency",
+            "opponent_update_latency",
             "score_updated",
-            "opponent_update_latency"
+            "opponent_updated"
         )
 
         val logs = repository.findByGameId(gameId)
