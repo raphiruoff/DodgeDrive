@@ -151,7 +151,7 @@ class SessionController(
         request: Session.SetReadyRequest,
         responseObserver: StreamObserver<Session.SetReadyResponse>
     ) {
-        val success = sessionService.setReady(request.sessionId, request.username)
+        val success = sessionService.setReady(request.sessionId, request.username, request.ready)
         val response = Session.SetReadyResponse.newBuilder().setSuccess(success).build()
         responseObserver.onNext(response)
         responseObserver.onCompleted()

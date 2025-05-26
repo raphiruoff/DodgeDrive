@@ -92,22 +92,19 @@ class SessionClient : BaseClient(overridePort = 9101) {
         }
     }
 
-    fun setReady(sessionId: String, username: String): Boolean {
+    fun setReady(sessionId: String, username: String, ready: Boolean): Boolean {
         val request = Session.SetReadyRequest.newBuilder()
             .setSessionId(sessionId)
             .setUsername(username)
+            .setReady(ready)
             .build()
 
         return try {
-            val response = stub.setReady(request)
-            response.success
+            stub.setReady(request).success
         } catch (e: Exception) {
             false
         }
     }
-
-
-
 
 
 

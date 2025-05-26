@@ -14,6 +14,7 @@ service SessionService {
     rpc TriggerGameStart(StartGameRequest) returns (StartGameResponse);
     rpc StreamInvitations (PlayerRequest) returns (stream Invitation);
     rpc SetReady (SetReadyRequest) returns (SetReadyResponse);
+    rpc UnsetReady (SetReadyRequest) returns (SetReadyResponse);
 
 }
 
@@ -103,7 +104,9 @@ message StartGameResponse {
 message SetReadyRequest {
     string sessionId = 1;
     string username = 2;
+    bool ready = 3;
 }
+
 
 message SetReadyResponse {
     bool success = 1;

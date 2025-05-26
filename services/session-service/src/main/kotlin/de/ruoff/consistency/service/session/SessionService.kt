@@ -164,13 +164,13 @@ class SessionService(
         }
     }
 
-    fun setReady(sessionId: String, username: String): Boolean {
+    fun setReady(sessionId: String, username: String, ready: Boolean): Boolean {
         val key = "session:$sessionId"
         val session = sessionRedisTemplate.opsForValue().get(key) ?: return false
 
         when (username) {
-            session.playerA -> session.playerAReady = true
-            session.playerB -> session.playerBReady = true
+            session.playerA -> session.playerAReady = ready
+            session.playerB -> session.playerBReady = ready
             else -> return false
         }
 
@@ -191,5 +191,6 @@ class SessionService(
 
         return true
     }
+
 
 }

@@ -304,16 +304,17 @@ fun SessionScreen(
                         coroutineScope.launch {
                             username?.let { user ->
                                 val success = withContext(Dispatchers.IO) {
-                                    sessionClient.setReady(id, user)
+                                    sessionClient.setReady(id, user, checked)
                                 }
                                 if (!success) {
-                                    infoMessage = "⚠️ Konnte Bereitschaft nicht setzen"
-                                    isReady = false
+                                    infoMessage = "⚠️ Konnte Bereitschaft nicht ändern"
+                                    isReady = !checked
                                 }
                             }
                         }
                     }
                 )
+
                 Text("Ich bin bereit")
             }
         }

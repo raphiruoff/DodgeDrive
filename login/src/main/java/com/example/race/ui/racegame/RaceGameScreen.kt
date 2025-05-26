@@ -162,10 +162,17 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 // 3. Spiel starten – Latenz des gRPC-Calls messen (Client → Server → Client)
                 val grpcSentAt = System.currentTimeMillis()
 
-                val (success, startAtServer, _) = AllClients.gameClient.startGameByGameId(
-                    gameId,
-                    username
-                )
+                val (success, startAtServer, _) = AllClients.gameClient.startGameByGameId(gameId, username)
+
+                val effectiveStartAt = if (success && startAtServer > 0L) {
+                    startAtServer
+                } else {
+                    AllClients.gameClient.getGame(gameId)?.startAt ?: run {
+                        println("Kein gültiger Startzeitpunkt verfügbar.")
+                        return@LaunchedEffect
+                    }
+                }
+
                 AllClients.gameClient.measureLatency(gameId, username)?.let { latency ->
                     println("📏 Direkte gRPC-Latenz (Client → Server): $latency ms")
 
@@ -179,16 +186,6 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 }
                 val grpcRtt = System.currentTimeMillis() - grpcSentAt
 
-//                println("📡 gRPC RTT für startGame: $grpcRtt ms")
-//
-//                // Logging: direkter gRPC-Aufruf
-//                AllClients.logClient.logEventWithFixedDelay(
-//                    gameId = gameId,
-//                    username = username,
-//                    eventType = "start_game_grpc",
-//                    scheduledAt = grpcSentAt,
-//                    delayMs = grpcRtt
-//                )
 
                 if (!success) {
                     println("❌ Spielstart fehlgeschlagen für gameId: $gameId")
