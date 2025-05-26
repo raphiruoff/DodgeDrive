@@ -59,7 +59,9 @@ class LogService(
             "opponent_updated",
             "score_roundtrip",
             // "latency_grpc_direct",
-            "obstacle_spawned",
+            //"obstacle_spawned",
+            "session_created",
+            "invitation_sent",
         )
 
         val logs = repository.findByGameId(gameId)

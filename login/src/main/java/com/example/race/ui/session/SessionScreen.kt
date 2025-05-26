@@ -52,11 +52,6 @@ fun SessionScreen(
     }
 
     LaunchedEffect(Unit) {
-
-
-
-
-
         if (username == null) return@LaunchedEffect
 
         try {
@@ -109,13 +104,10 @@ fun SessionScreen(
                             infoMessage = "⏳ Warte auf Spielinitialisierung..."
                         }
                     }
-
-
                 }
             }
         }
     }
-
 
     DisposableEffect(Unit) {
         onDispose {
@@ -132,14 +124,15 @@ fun SessionScreen(
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
+        modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text("🎯 Session erstellen", style = MaterialTheme.typography.headlineMedium)
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.weight(1f)) {
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.weight(1f)
+        ) {
             items(friends) { friend ->
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Row(
@@ -151,33 +144,76 @@ fun SessionScreen(
                     ) {
                         Text(friend)
                         when {
-                            acceptedFriends.contains(friend) -> Button(onClick = {}, enabled = false) { Text("✅") }
-                            invitedFriends.contains(friend) -> CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                            else -> Button(
-                                onClick = {
-                                    coroutineScope.launch {
-                                        val safeUsername = username
-                                        if (safeUsername != null) {
-                                            if (sessionId == null) {
-                                                sessionId = withContext(Dispatchers.IO) {
-                                                    sessionClient.createSession(safeUsername)
+                            acceptedFriends.contains(friend) -> {
+                                Button(onClick = {}, enabled = false) { Text("✅") }
+                            }
+
+                            invitedFriends.contains(friend) -> {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            }
+
+                            else -> {
+                                Button(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            val safeUsername = username
+                                            if (safeUsername != null) {
+                                                // Session erzeugen (nur wenn noch keine existiert)
+                                                if (sessionId == null) {
+                                                    val sentAt = System.currentTimeMillis()
+                                                    val createdSessionId = withContext(Dispatchers.IO) {
+                                                        sessionClient.createSession(safeUsername)
+                                                    }
+                                                    val receivedAt = System.currentTimeMillis()
+                                                    val delayMs = receivedAt - sentAt
+
+                                                    sessionId = createdSessionId
+
+                                                    AllClients.logClient.logEventWithFixedDelay(
+                                                        gameId = createdSessionId,
+                                                        username = safeUsername,
+                                                        eventType = "session_created",
+                                                        scheduledAt = sentAt,
+                                                        delayMs = delayMs
+                                                    )
+                                                }
+
+                                                // Spieler einladen
+                                                invitedFriends.add(friend)
+
+                                                val sentAtInvite = System.currentTimeMillis()
+                                                val success = withContext(Dispatchers.IO) {
+                                                    sessionClient.invitePlayer(safeUsername, friend)
+                                                }
+                                                val receivedAtInvite = System.currentTimeMillis()
+                                                val inviteDelay = receivedAtInvite - sentAtInvite
+
+                                                if (success) {
+                                                    AllClients.logClient.logEventWithFixedDelay(
+                                                        gameId = sessionId ?: "unknown",
+                                                        username = safeUsername,
+                                                        eventType = "invitation_sent",
+                                                        scheduledAt = sentAtInvite,
+                                                        delayMs = inviteDelay,
+                                                        opponentUsername = friend
+                                                    )
+                                                } else {
+                                                    invitedFriends.remove(friend)
                                                 }
                                             }
-                                            invitedFriends.add(friend)
-                                            val success = withContext(Dispatchers.IO) {
-                                                sessionClient.invitePlayer(safeUsername, friend)
-                                            }
-                                            if (!success) invitedFriends.remove(friend)
                                         }
-                                    }
-                                },
-                                enabled = !isLoading
-                            ) { Text("Einladen") }
+                                    },
+                                    enabled = !isLoading
+                                ) {
+                                    Text("Einladen")
+                                }
+                            }
                         }
                     }
                 }
             }
         }
+
 
         if (invitations.isNotEmpty()) {
             Text("📨 Einladungen", style = MaterialTheme.typography.titleMedium)
@@ -185,9 +221,7 @@ fun SessionScreen(
                 items(invitations) { invitation ->
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Row(
-                            modifier = Modifier
-                                .padding(16.dp)
-                                .fillMaxWidth(),
+                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -245,13 +279,21 @@ fun SessionScreen(
                     val safeSessionId = sessionId
                     val safeUsername = username
                     if (safeSessionId != null && safeUsername != null && sessionStatus == "ACTIVE") {
-                        val (success, _, _) = withContext(Dispatchers.IO) {
+                        val sentAt = System.currentTimeMillis()
+
+                        val (success, _, gameId) = withContext(Dispatchers.IO) {
                             sessionClient.triggerGameStart(safeSessionId, safeUsername)
                         }
+
+
                         if (!success) {
                             infoMessage = "Spielstart fehlgeschlagen"
                         } else {
                             sessionStatus = "WAITING_FOR_START"
+                        }
+
+                        withContext(Dispatchers.IO) {
+                            AllClients.logClient.exportLogs(safeSessionId)
                         }
                     }
                 }
@@ -261,7 +303,6 @@ fun SessionScreen(
         ) {
             Text("🚗 Spiel starten")
         }
-
 
         Button(onClick = onNavigateBack, modifier = Modifier.fillMaxWidth()) {
             Text("⬅️ Zurück")
