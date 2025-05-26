@@ -21,7 +21,6 @@ class SessionStreamService {
             .setRequester(event.requester)
             .build()
 
-        // Entferne alle Observer, bei denen onNext fehlschlägt (z. B. Client ist weg)
         invitationObservers[event.receiver]?.removeIf { observer ->
             try {
                 observer.onNext(invitation)

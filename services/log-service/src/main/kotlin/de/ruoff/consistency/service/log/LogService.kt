@@ -23,7 +23,7 @@ class LogService(
         val eventId = "$gameId-$eventType-$username-${originTimestamp ?: System.currentTimeMillis()}"
 
         if (repository.existsById(eventId)) {
-            println("⚠️ Log bereits vorhanden → $eventId")
+            println("Log bereits vorhanden → $eventId")
             return
         }
 
@@ -62,6 +62,7 @@ class LogService(
             //"obstacle_spawned",
             "session_created",
             "invitation_sent",
+            "invitation_accepted"
         )
 
         val logs = repository.findByGameId(gameId)

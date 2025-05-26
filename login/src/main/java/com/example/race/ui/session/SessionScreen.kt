@@ -230,10 +230,23 @@ fun SessionScreen(
                                 coroutineScope.launch {
                                     val safeUsername = username
                                     if (safeUsername != null) {
+                                        val sentAtAccept = System.currentTimeMillis()
                                         val accepted = withContext(Dispatchers.IO) {
                                             sessionClient.acceptInvitation(invitation.sessionId, safeUsername)
                                         }
+                                        val receivedAtAccept = System.currentTimeMillis()
+                                        val delayAccept = receivedAtAccept - sentAtAccept
+
                                         if (accepted) {
+                                            AllClients.logClient.logEventWithFixedDelay(
+                                                gameId = invitation.sessionId,
+                                                username = safeUsername,
+                                                eventType = "invitation_accepted",
+                                                scheduledAt = sentAtAccept,
+                                                delayMs = delayAccept,
+                                                opponentUsername = invitation.requester
+                                            )
+
                                             sessionId = invitation.sessionId
                                             invitations = emptyList()
                                             val session = withContext(Dispatchers.IO) {
@@ -249,6 +262,7 @@ fun SessionScreen(
                             }) {
                                 Text("Annehmen")
                             }
+
                         }
                     }
                 }

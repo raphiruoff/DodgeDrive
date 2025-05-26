@@ -25,6 +25,7 @@ repositories {
 extra["springGrpcVersion"] = "0.3.0"
 
 dependencies {
+    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-reactor:1.7.3")
 
     implementation("org.springframework.grpc:spring-grpc-spring-boot-starter")
     implementation("io.grpc:grpc-services")
