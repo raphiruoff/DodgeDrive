@@ -1,13 +1,16 @@
 package de.ruoff.consistency.service.game
 
+import de.ruoff.consistency.events.GameLogEvent
 import de.ruoff.consistency.service.game.GameServiceGrpc.GameServiceImplBase
+import de.ruoff.consistency.service.game.events.GameLogProducer
 import io.grpc.Status
 import io.grpc.stub.StreamObserver
 import org.springframework.grpc.server.service.GrpcService
 
 @GrpcService
 class GameController(
-    private val gameService: GameService
+    private val gameService: GameService,
+    private val gameLogProducer: GameLogProducer
 ) : GameServiceImplBase() {
 
     override fun createGame(
@@ -182,6 +185,7 @@ class GameController(
         request: IncrementScoreRequest,
         responseObserver: StreamObserver<IncrementScoreResponse>
     ) {
+
         val success = gameService.incrementScore(
             gameId = request.gameId,
             player = request.player,
@@ -192,6 +196,30 @@ class GameController(
         responseObserver.onNext(response)
         responseObserver.onCompleted()
     }
+
+    override fun measureLatency(request: MeasureLatencyRequest, responseObserver: StreamObserver<MeasureLatencyResponse>) {
+        val receivedAt = System.currentTimeMillis()
+
+        // OPTIONALES LOGGING
+        gameLogProducer.send(
+            GameLogEvent(
+                gameId = request.gameId,
+                username = request.username,
+                eventType = "latency_grpc_backend",
+                originTimestamp = request.originTimestamp,
+                delayMs = receivedAt - request.originTimestamp
+            )
+        )
+
+        val response = MeasureLatencyResponse.newBuilder()
+            .setReceivedAt(receivedAt)
+            .build()
+
+        responseObserver.onNext(response)
+        responseObserver.onCompleted()
+    }
+
+
 
 
 

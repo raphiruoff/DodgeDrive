@@ -51,18 +51,23 @@ class LogService(
         val formattedTime = formatter.format(timestamp)
         val file = File(logsDir, "log_export_${gameId}_$formattedTime.csv")
         val relevantEvents = setOf(
-            "game_start",
+           // "game_start",
             "obstacle_spawned_latency",
-            "score_update_latency",
-            "opponent_update_latency",
+            "score_update_grpc",
+            "opponent_update_grpc",
             "score_updated",
-            "opponent_updated"
+            "opponent_updated",
+            "score_roundtrip",
+            // "latency_grpc_direct",
+            "obstacle_spawned",
         )
 
         val logs = repository.findByGameId(gameId)
             .filter { it.eventType in relevantEvents }
+            .filter { it.delayMs <= 5000 }
+
         if (logs.isEmpty()) {
-            println("❗ Keine Logs für gameId=$gameId gefunden.")
+            println("Keine Logs für gameId=$gameId gefunden.")
             return
         }
 
@@ -84,8 +89,9 @@ class LogService(
         }
 
         file.writeText(csv.toString())
-        println("✅ Exportierte vereinfachte Logdatei: ${file.absolutePath}")
+        println("Exportierte  Logdatei ): ${file.absolutePath}")
     }
+
 
 
 

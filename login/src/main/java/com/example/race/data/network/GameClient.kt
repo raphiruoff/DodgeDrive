@@ -111,4 +111,23 @@ class GameClient : BaseClient(overridePort = 9093) {
             null
         }
     }
+
+    fun measureLatency(gameId: String, username: String): Long? {
+        return try {
+            val sentAt = System.currentTimeMillis()
+            val request = MeasureLatencyRequest.newBuilder()
+                .setOriginTimestamp(sentAt)
+                .setUsername(username)
+                .setGameId(gameId)
+                .build()
+
+            val response = stub.measureLatency(request)
+            val receivedAt = response.receivedAt
+            receivedAt - sentAt
+        } catch (e: Exception) {
+            Log.e("GameClient", "measureLatency failed", e)
+            null
+        }
+    }
+
 }

@@ -25,7 +25,9 @@ import com.example.race.ui.racegame.components.Obstacle
 import com.example.race.ui.racegame.components.ScrollingRaceTrack
 import com.example.race.ui.racegame.state.CarState
 import de.ruoff.consistency.events.ObstacleSpawnedEvent
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
 fun checkCollision(car: CarState, obstacle: Obstacle): Boolean {
@@ -112,30 +114,44 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                         pendingObstacles.add(obstacle)
                     },
                     onScoreUpdate = { event ->
-                        println("👤 Lokaler Username: $username")
-                        println("📩 Event Username: ${event.username}")
-                        println("📊 Event Score: ${event.newScore}")
-                        println("🟡 Match? ${event.username == username}")
+                        println("📨 ScoreUpdate erhalten: ${event.username}, Score: ${event.newScore}")
 
                         if (event.username.equals(username, ignoreCase = true)) {
+                            // Lokaler Spieler
                             playerScore = event.newScore
+
+                            val roundtripDelay = System.currentTimeMillis() - event.timestamp
+                            println("🌀 RTT (gRPC → Backend → Kafka/WebSocket → Client): $roundtripDelay ms")
+
+                            AllClients.logClient.logEventWithFixedDelay(
+                                gameId = gameId,
+                                username = username,
+                                eventType = "score_roundtrip",
+                                scheduledAt = event.timestamp,
+                                delayMs = roundtripDelay,
+                                score = event.newScore
+                            )
                         } else {
+                            // Gegner → Score setzen
                             opponentScore.value = event.newScore
 
-                            logEventOnceLocal(
-                                eventType = "opponent_updated",
-                                scheduledAt = event.timestamp,
-                                score = event.newScore,
-                                opponentUsername = event.username
-                            )
-
+//                            logEventOnceLocal(
+//                                eventType = "opponent_updated",
+//                                scheduledAt = event.timestamp,
+//                                score = event.newScore,
+//                                opponentUsername = event.username
+//                            )
                         }
-                    },
+                    }
+                    ,
                     onConnected = {
                         println("✅ WebSocket ist jetzt bereit!")
                         isWebSocketReady = true
                     }
                 )
+
+
+
 
                 // 2. Warte explizit, bis WebSocket verbunden & Subscriptions bereit sind
                 while (!isWebSocketReady) {
@@ -143,11 +159,37 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                     delay(100)
                 }
 
-                // 3. Spiel starten – Hindernisse werden jetzt vom Server über WebSocket gepusht
+                // 3. Spiel starten – Latenz des gRPC-Calls messen (Client → Server → Client)
+                val grpcSentAt = System.currentTimeMillis()
+
                 val (success, startAtServer, _) = AllClients.gameClient.startGameByGameId(
                     gameId,
                     username
                 )
+                AllClients.gameClient.measureLatency(gameId, username)?.let { latency ->
+                    println("📏 Direkte gRPC-Latenz (Client → Server): $latency ms")
+
+                    AllClients.logClient.logEventWithFixedDelay(
+                        gameId = gameId,
+                        username = username,
+                        eventType = "latency_grpc_direct",
+                        scheduledAt = System.currentTimeMillis() - latency,
+                        delayMs = latency
+                    )
+                }
+                val grpcRtt = System.currentTimeMillis() - grpcSentAt
+
+//                println("📡 gRPC RTT für startGame: $grpcRtt ms")
+//
+//                // Logging: direkter gRPC-Aufruf
+//                AllClients.logClient.logEventWithFixedDelay(
+//                    gameId = gameId,
+//                    username = username,
+//                    eventType = "start_game_grpc",
+//                    scheduledAt = grpcSentAt,
+//                    delayMs = grpcRtt
+//                )
+
                 if (!success) {
                     println("❌ Spielstart fehlgeschlagen für gameId: $gameId")
                     return@LaunchedEffect
@@ -195,8 +237,24 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 )
 
 
+
                 isStarted = true
                 gameStartDelay = SystemClock.elapsedRealtime() - gameStartTime
+            }
+            LaunchedEffect(Unit) {
+                withContext(Dispatchers.IO) {
+                    AllClients.gameClient.measureLatency(gameId, username)?.let { latency ->
+                        println("📏 Direkte gRPC-Latenz (Client → Server): $latency ms")
+
+                        AllClients.logClient.logEventWithFixedDelay(
+                            gameId = gameId,
+                            username = username,
+                            eventType = "latency_grpc_direct",
+                            scheduledAt = System.currentTimeMillis() - latency,
+                            delayMs = latency
+                        )
+                    }
+                }
             }
 
 
@@ -289,15 +347,19 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                                 )
 
                                 if (success) {
-                                    // 🔹 Logging auf Basis des ursprünglichen Ereigniszeitpunkts
-                                    AllClients.logClient.logEventOnce(
+                                    val now = System.currentTimeMillis()
+                                    val delay = now - originTimestamp
+
+                                    AllClients.logClient.logEventWithFixedDelay(
                                         gameId = gameId,
                                         username = username,
                                         eventType = "score_updated",
                                         scheduledAt = originTimestamp,
+                                        delayMs = delay,
                                         score = playerScore
                                     )
                                 }
+
                             }
                         }
                     }

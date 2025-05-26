@@ -73,7 +73,7 @@ class GameService(
 
 
     private fun generateObstacles(gameId: String): List<ObstacleModel> {
-        val obstacleCount = 10
+        val obstacleCount = 30
         val intervalMs = 3500L
         val lanes = listOf(0.33f, 0.5f, 0.66f)
         val seed = gameId.hashCode().toLong()
@@ -144,33 +144,33 @@ class GameService(
             ScoreUpdateEvent(gameId, player, newScore, timestamp)
         )
 
-        // 2. Logge score_update_latency
-        gameLogProducer.send(
-            GameLogEvent(
-                gameId = gameId,
-                username = player,
-                eventType = "score_update_latency",
-                originTimestamp = timestamp,
-                delayMs = delayMs,
-                score = newScore
-            )
-        )
+//        // 2. Logge score_update_latency
+//        gameLogProducer.send(
+//            GameLogEvent(
+//                gameId = gameId,
+//                username = player,
+//                eventType = "score_update_grpc",
+//                originTimestamp = timestamp,
+//                delayMs = delayMs,
+//                score = newScore
+//            )
+//        )
 
         // 3. Gegner bestimmen
         val opponent = if (player == game.playerA) game.playerB else game.playerA
-
-        // 4. Logge opponent_update_latency
-        gameLogProducer.send(
-            GameLogEvent(
-                gameId = gameId,
-                username = opponent,
-                eventType = "opponent_update_latency",
-                originTimestamp = timestamp,
-                delayMs = delayMs,
-                score = newScore,
-                opponentUsername = player
-            )
-        )
+//
+//        // 4. Logge opponent_update_latency
+//        gameLogProducer.send(
+//            GameLogEvent(
+//                gameId = gameId,
+//                username = opponent,
+//                eventType = "opponent_update_grpc",
+//                originTimestamp = timestamp,
+//                delayMs = delayMs,
+//                score = newScore,
+//                opponentUsername = player
+//            )
+//        )
 
         return true
     }

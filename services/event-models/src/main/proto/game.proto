@@ -11,6 +11,7 @@ service GameService {
     rpc FinishGame(FinishGameRequest) returns (FinishGameResponse);
     rpc IncrementScore(IncrementScoreRequest) returns (IncrementScoreResponse);
     rpc StartGame(StartGameRequest) returns (StartGameResponse);
+    rpc MeasureLatency(MeasureLatencyRequest) returns (MeasureLatencyResponse);
 
 }
 
@@ -97,4 +98,14 @@ message StartGameResponse {
     bool success = 1;
     int64 startAt = 2;
     string gameId = 3;
+}
+
+message MeasureLatencyRequest {
+    int64 originTimestamp = 1;
+    string username = 2;
+    string gameId = 3;
+}
+
+message MeasureLatencyResponse {
+    int64 receivedAt = 1;
 }
