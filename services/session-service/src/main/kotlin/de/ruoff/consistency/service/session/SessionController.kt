@@ -146,4 +146,15 @@ class SessionController(
         println(" gRPC-Stream aktiviert für: ${request.player}")
         sessionService.registerInvitationStream(request.player, responseObserver)
     }
+
+    override fun setReady(
+        request: Session.SetReadyRequest,
+        responseObserver: StreamObserver<Session.SetReadyResponse>
+    ) {
+        val success = sessionService.setReady(request.sessionId, request.username)
+        val response = Session.SetReadyResponse.newBuilder().setSuccess(success).build()
+        responseObserver.onNext(response)
+        responseObserver.onCompleted()
+    }
+
 }

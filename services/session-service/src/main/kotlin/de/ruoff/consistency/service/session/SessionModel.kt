@@ -17,5 +17,8 @@ data class GameSession @JsonCreator constructor(
     @JsonProperty("playerA") val playerA: String,
     @JsonProperty("playerB") var playerB: String? = null,
     @JsonProperty("status") var status: SessionStatus = SessionStatus.WAITING_FOR_PLAYER,
-    @JsonProperty("startAt") var startAt: Long? = null
+    @JsonProperty("startAt") var startAt: Long? = null,
+    @JsonProperty("playerAReady") var playerAReady: Boolean = false,
+    @JsonProperty("playerBReady") var playerBReady: Boolean = false
+
 )

@@ -36,6 +36,8 @@ fun SessionScreen(
     var sessionPartner by remember { mutableStateOf<String?>(null) }
     var sessionStatus by remember { mutableStateOf<String?>(null) }
     var session by remember { mutableStateOf<Session.GetSessionResponse?>(null) }
+    var playerAReady by remember { mutableStateOf(false) }
+    var playerBReady by remember { mutableStateOf(false) }
 
     var isLoading by remember { mutableStateOf(false) }
     var infoMessage by remember { mutableStateOf("") }
@@ -80,12 +82,19 @@ fun SessionScreen(
         if (safeSessionId != null && safeUsername != null) {
             while (true) {
                 delay(500L)
-                val session = withContext(Dispatchers.IO) { sessionClient.getSession(safeSessionId) }
+                val session = withContext(Dispatchers.IO) {
+                    sessionClient.getSession(safeSessionId)
+                }
+
                 if (session != null) {
                     sessionStatus = session.status
+                    playerAReady = session.playerAReady
+                    playerBReady = session.playerBReady
+
                     if (session.status == "ACTIVE" && session.playerB != null) {
                         val partner = if (session.playerA == safeUsername) session.playerB else session.playerA
                         sessionPartner = partner
+
                         if (partner != null && !acceptedFriends.contains(partner)) {
                             acceptedFriends.add(partner)
                         }
@@ -98,6 +107,9 @@ fun SessionScreen(
                         }
 
                         if (game != null && game.gameId.isNotBlank()) {
+                            withContext(Dispatchers.IO) {
+                                AllClients.logClient.exportLogs(safeSessionId)
+                            }
                             onNavigateToRaceGame(game.gameId, safeUsername)
                             break
                         } else {
@@ -108,6 +120,7 @@ fun SessionScreen(
             }
         }
     }
+
 
     DisposableEffect(Unit) {
         onDispose {
@@ -276,6 +289,35 @@ fun SessionScreen(
                 color = MaterialTheme.colorScheme.primary
             )
         }
+        var isReady by remember { mutableStateOf(false) }
+
+        sessionId?.let { id ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Checkbox(
+                    checked = isReady,
+                    onCheckedChange = { checked ->
+                        isReady = checked
+                        coroutineScope.launch {
+                            username?.let { user ->
+                                val success = withContext(Dispatchers.IO) {
+                                    sessionClient.setReady(id, user)
+                                }
+                                if (!success) {
+                                    infoMessage = "⚠️ Konnte Bereitschaft nicht setzen"
+                                    isReady = false
+                                }
+                            }
+                        }
+                    }
+                )
+                Text("Ich bin bereit")
+            }
+        }
+
 
         if (infoMessage.isNotBlank()) {
             Text(
@@ -287,36 +329,7 @@ fun SessionScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Button(
-            onClick = {
-                coroutineScope.launch {
-                    val safeSessionId = sessionId
-                    val safeUsername = username
-                    if (safeSessionId != null && safeUsername != null && sessionStatus == "ACTIVE") {
-                        val sentAt = System.currentTimeMillis()
 
-                        val (success, _, gameId) = withContext(Dispatchers.IO) {
-                            sessionClient.triggerGameStart(safeSessionId, safeUsername)
-                        }
-
-
-                        if (!success) {
-                            infoMessage = "Spielstart fehlgeschlagen"
-                        } else {
-                            sessionStatus = "WAITING_FOR_START"
-                        }
-
-                        withContext(Dispatchers.IO) {
-                            AllClients.logClient.exportLogs(safeSessionId)
-                        }
-                    }
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = sessionPartner != null && sessionStatus == "ACTIVE"
-        ) {
-            Text("🚗 Spiel starten")
-        }
 
         Button(onClick = onNavigateBack, modifier = Modifier.fillMaxWidth()) {
             Text("⬅️ Zurück")

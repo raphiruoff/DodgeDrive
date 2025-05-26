@@ -163,4 +163,33 @@ class SessionService(
             )
         }
     }
+
+    fun setReady(sessionId: String, username: String): Boolean {
+        val key = "session:$sessionId"
+        val session = sessionRedisTemplate.opsForValue().get(key) ?: return false
+
+        when (username) {
+            session.playerA -> session.playerAReady = true
+            session.playerB -> session.playerBReady = true
+            else -> return false
+        }
+
+        sessionRedisTemplate.opsForValue().set(key, session)
+
+        if (session.playerAReady && session.playerBReady) {
+            try {
+                val gameId = gameClient.createGame(session.sessionId, session.playerA, session.playerB!!)
+                session.status = SessionStatus.WAITING_FOR_START
+                sessionRedisTemplate.opsForValue().set(key, session)
+            } catch (e: Exception) {
+                session.playerAReady = false
+                session.playerBReady = false
+                sessionRedisTemplate.opsForValue().set(key, session)
+                return false
+            }
+        }
+
+        return true
+    }
+
 }
