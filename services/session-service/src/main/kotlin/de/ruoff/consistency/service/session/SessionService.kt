@@ -116,26 +116,26 @@ class SessionService(
 
     fun triggerGameStart(sessionId: String, username: String): Session.StartGameResponse {
         val lockKey = "lock:session-start:$sessionId"
-        println("🔒 triggerGameStart: $username versucht Lock für Session $sessionId")
+        println("triggerGameStart: $username versucht Lock für Session $sessionId")
 
         if (!redisLockService.acquireLock(lockKey, 5000)) {
-            println("❌ triggerGameStart: Lock konnte nicht erworben werden für $sessionId")
+            println(" triggerGameStart: Lock konnte nicht erworben werden für $sessionId")
             return Session.StartGameResponse.newBuilder().setSuccess(false).build()
         }
 
         try {
             val session = getSession(sessionId)
             if (session == null) {
-                println("❌ triggerGameStart: Session $sessionId nicht gefunden")
+                println(" triggerGameStart: Session $sessionId nicht gefunden")
                 return Session.StartGameResponse.newBuilder().setSuccess(false).build()
             }
 
-            println("🟢 Session geladen: ${session.sessionId}, Spieler: ${session.playerA} vs ${session.playerB}")
+            println("Session geladen: ${session.sessionId}, Spieler: ${session.playerA} vs ${session.playerB}")
 
-            // Spiel bereits vorhanden?
+            // Prüfe, ob bereits ein Spiel existiert
             val existingGame = gameClient.getGameBySession(sessionId)
             if (existingGame != null && existingGame.startAt > 0L) {
-                println("⚠️ Spiel existiert schon: ${existingGame.gameId}, startAt=${existingGame.startAt}")
+                println("Spiel existiert schon: ${existingGame.gameId}, startAt=${existingGame.startAt}")
                 return Session.StartGameResponse.newBuilder()
                     .setSuccess(true)
                     .setStartAt(existingGame.startAt)
@@ -143,14 +143,33 @@ class SessionService(
                     .build()
             }
 
-            // Neues Spiel erzeugen
-            println("🆕 Neues Spiel wird erstellt...")
-            val gameId = gameClient.createGame(sessionId, session.playerA, session.playerB!!)
+            // Neues Spiel erzeugen mit Retry, falls keine Hindernisse generiert werden
+            println("🆕 Spielerstellung wird versucht...")
+            var successfulGameId: String? = null
+            val maxRetries = 3
+
+            repeat(maxRetries) { attempt ->
+                println("Spiel-Erstellungsversuch ${attempt + 1} von $maxRetries")
+                val candidateGameId = gameClient.createGame(sessionId, session.playerA, session.playerB!!)
+                val candidateGame = candidateGameId?.let { gameClient.getGame(it) }
+
+                if (candidateGame != null && candidateGame.obstaclesList.isNotEmpty()) {
+                    println(" Spiel mit Hindernissen erstellt: gameId=$candidateGameId")
+                    successfulGameId = candidateGameId
+                    return@repeat
+                }
+
+                println("Spiel hatte keine Hindernisse – erneuter Versuch...")
+                Thread.sleep(200)
+            }
+
+            val gameId = successfulGameId
             if (gameId == null) {
-                println("❌ Spiel konnte nicht erstellt werden")
+                println("❌ Spiel konnte nicht korrekt erstellt werden (keine Hindernisse)")
                 return Session.StartGameResponse.newBuilder().setSuccess(false).build()
             }
 
+            // Spiel starten
             val started = gameClient.startGame(gameId, username)
             println("🚀 startGame aufgerufen: gameId=$gameId, success=$started")
 
@@ -162,7 +181,7 @@ class SessionService(
 
             while (System.currentTimeMillis() < timeoutAt) {
                 val g = gameClient.getGame(gameId)
-                println("🔁 startAt Check: gameId=$gameId → startAt=${g?.startAt}")
+                println(" startAt Check: gameId=$gameId → startAt=${g?.startAt}")
 
                 if (g?.startAt != null && g.startAt > 0L) {
                     finalGame = g
@@ -173,11 +192,11 @@ class SessionService(
             }
 
             if (finalGame == null) {
-                println("❌ Spielstart fehlgeschlagen: startAt blieb 0")
+                println(" Spielstart fehlgeschlagen: startAt blieb 0")
                 return Session.StartGameResponse.newBuilder().setSuccess(false).build()
             }
 
-            println("✅ Spiel erfolgreich gestartet: gameId=${finalGame.gameId}, startAt=${finalGame.startAt}")
+            println(" Spiel erfolgreich gestartet: gameId=${finalGame.gameId}, startAt=${finalGame.startAt}")
             return Session.StartGameResponse.newBuilder()
                 .setSuccess(true)
                 .setStartAt(finalGame.startAt)
@@ -185,14 +204,16 @@ class SessionService(
                 .build()
 
         } catch (e: Exception) {
-            println("❌ triggerGameStart: Fehler: ${e.message}")
+            println("triggerGameStart: Fehler: ${e.message}")
             e.printStackTrace()
             return Session.StartGameResponse.newBuilder().setSuccess(false).build()
         } finally {
             redisLockService.releaseLock(lockKey)
-            println("🔓 Lock freigegeben für $sessionId")
+            println(" Lock freigegeben für $sessionId")
         }
     }
+
+
 
 
 
@@ -232,7 +253,7 @@ class SessionService(
             session.playerA -> session.playerAReady = ready
             session.playerB -> session.playerBReady = ready
             else -> {
-                println("❌ setReady: $username gehört nicht zur Session")
+                println(" setReady: $username gehört nicht zur Session")
                 return false
             }
         }
@@ -240,14 +261,14 @@ class SessionService(
         sessionRedisTemplate.opsForValue().set(key, session)
 
         if (session.playerAReady && session.playerBReady) {
-            println("✅ Beide Spieler sind bereit für Session $sessionId")
+            println("Beide Spieler sind bereit für Session $sessionId")
 
             session.status = SessionStatus.WAITING_FOR_START
             sessionRedisTemplate.opsForValue().set(key, session)
 
-            println("🚀 triggerGameStart wird ausgelöst von $username")
+            println(" triggerGameStart wird ausgelöst von $username")
             val response = triggerGameStart(sessionId, username)
-            println("🎮 triggerGameStart Rückgabe: success=${response.success}, startAt=${response.startAt}, gameId=${response.gameId}")
+            println(" triggerGameStart Rückgabe: success=${response.success}, startAt=${response.startAt}, gameId=${response.gameId}")
         }
 
         return true
