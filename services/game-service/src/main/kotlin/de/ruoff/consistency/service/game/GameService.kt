@@ -113,6 +113,10 @@ class GameService(
     }
 
     fun incrementScore(gameId: String, player: String, obstacleId: String, originTimestamp: Long?): Boolean {
+        val receivedAt = System.currentTimeMillis()
+        val timestamp = originTimestamp ?: receivedAt
+        val delayMs = originTimestamp?.let { receivedAt - it } ?: 0L
+
         println("➡️ [incrementScore] Aufruf mit gameId=$gameId, player=$player, obstacleId=$obstacleId")
 
         val game = gameRepository.findById(gameId) ?: run {
@@ -133,18 +137,14 @@ class GameService(
         game.scores[player] = newScore
         gameRepository.save(game)
 
-        val now = System.currentTimeMillis()
-        val timestamp = originTimestamp ?: now
-        val delayMs = originTimestamp?.let { now - it } ?: 0L
-
-        println("Punktestand für $player erhöht auf $newScore")
+        println("✔️ Punktestand für $player erhöht auf $newScore (delay=$delayMs ms)")
 
         // 1. Sende ScoreUpdateEvent → an den Spieler selbst
         gameEventProducer.sendScoreUpdate(
             ScoreUpdateEvent(gameId, player, newScore, timestamp)
         )
 
-        // 2. Logge score_updated Event → für Spieler selbst
+        // 2. Logge score_update_latency
         gameLogProducer.send(
             GameLogEvent(
                 gameId = gameId,
@@ -159,7 +159,7 @@ class GameService(
         // 3. Gegner bestimmen
         val opponent = if (player == game.playerA) game.playerB else game.playerA
 
-        // 4. Logge opponent_update für Gegner
+        // 4. Logge opponent_update_latency
         gameLogProducer.send(
             GameLogEvent(
                 gameId = gameId,
@@ -174,6 +174,7 @@ class GameService(
 
         return true
     }
+
 
 
 
@@ -235,7 +236,7 @@ class GameService(
         try {
             val freshGame = gameRepository.findById(gameId)
             if (freshGame?.startAt != null) {
-                println("⚠️ Spiel wurde unterdessen gestartet → gameId=$gameId")
+                println(" Spiel wurde unterdessen gestartet → gameId=$gameId")
                 return true
             }
 
@@ -244,14 +245,13 @@ class GameService(
 
             println("🚦 Spielstart vorbereitet → gameId=$gameId, startAt=$updatedStartAt (durch $callerUsername)")
 
-            // 🟢 Logge game_start für beide Spieler mit originTimestamp = startAt
 
 
 
             println("📤 Sende Hindernisse, weil $callerUsername hat Spielstart ausgelöst")
             game.obstacles.forEach { obstacle ->
                 val spawnTime = updatedStartAt + obstacle.timestamp
-                println("📤 Sende obstacle → id=${obstacle.id}, x=${obstacle.x}, timestamp=$spawnTime")
+                println("📤Sende obstacle → id=${obstacle.id}, x=${obstacle.x}, timestamp=$spawnTime")
                 gameEventProducer.sendObstacleSpawned(
                     ObstacleSpawnedEvent(
                         gameId = gameId,

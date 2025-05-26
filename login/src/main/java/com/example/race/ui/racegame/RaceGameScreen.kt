@@ -267,18 +267,20 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                             val obstacle = iterator.next()
                             obstacle.y += 8f
 
+                            // 🟥 Kollisionserkennung
                             if (checkCollision(carState.value, obstacle)) {
                                 isGameOver.value = true
                             }
 
+                            // ✅ Hindernis wurde passiert und noch nicht gezählt
                             if (obstacle.y > screenHeight && !obstacle.scored) {
                                 obstacle.scored = true
                                 toRemove.add(obstacle)
 
+                                // 🔹 Zeitstempel möglichst nah am Event erfassen!
                                 val originTimestamp = System.currentTimeMillis()
-                                val start = SystemClock.elapsedRealtime()
 
-
+                                // 🔹 gRPC-Call (asynchron)
                                 val success = AllClients.gameClient.incrementScore(
                                     gameId = gameId,
                                     player = username,
@@ -287,6 +289,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                                 )
 
                                 if (success) {
+                                    // 🔹 Logging auf Basis des ursprünglichen Ereigniszeitpunkts
                                     AllClients.logClient.logEventOnce(
                                         gameId = gameId,
                                         username = username,
@@ -294,19 +297,14 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                                         scheduledAt = originTimestamp,
                                         score = playerScore
                                     )
-
-
-
                                 }
-
-
                             }
-
                         }
                     }
 
                     obstacles.removeAll(toRemove)
                 }
+
 
 
             }

@@ -45,7 +45,7 @@ class GameClient : BaseClient(overridePort = 9093) {
             val request = IncrementScoreRequest.newBuilder()
                 .setGameId(gameId)
                 .setPlayer(player)
-                .setObstacleId(obstacleId) // NEU!
+                .setObstacleId(obstacleId)
                 .setOriginTimestamp(originTimestamp)
                 .build()
             val response = stub.incrementScore(request)
@@ -55,6 +55,7 @@ class GameClient : BaseClient(overridePort = 9093) {
             false
         }
     }
+
 
 
 
