@@ -122,20 +122,15 @@ class SessionController(
         responseObserver: StreamObserver<Session.StartGameResponse>
     ) {
         try {
-            val (gameId, startAt) = sessionService.triggerGameStart(request.sessionId, request.username)
+            val grpcResponse = sessionService.triggerGameStart(request.sessionId, request.username)
 
-            val response = Session.StartGameResponse.newBuilder()
-                .setSuccess(true)
-                .setGameId(gameId)
-                .setStartAt(startAt)
-                .build()
-
-            responseObserver.onNext(response)
+            responseObserver.onNext(grpcResponse)
             responseObserver.onCompleted()
         } catch (e: Exception) {
             responseObserver.onError(e)
         }
     }
+
 
 
 

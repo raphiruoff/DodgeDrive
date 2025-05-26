@@ -6,17 +6,23 @@ import org.springframework.stereotype.Repository
 
 @Repository
 class GameRepository(
-    @Qualifier("gameRedisTemplate")
-    private val redisTemplate: RedisTemplate<String, GameModel>
+    @Qualifier("gameRedisTemplate") val redisTemplate: RedisTemplate<String, GameModel>
 ) {
 
     fun save(game: GameModel) {
+        println("Speichere Spiel: ${game.gameId} → startAt=${game.startAt}")
         redisTemplate.opsForValue().set("game:${game.gameId}", game)
     }
 
+
     fun findById(gameId: String): GameModel? {
-        return redisTemplate.opsForValue().get("game:$gameId")
+        val key = "game:$gameId"
+        val game = redisTemplate.opsForValue().get(key)
+        println("Redis get: $key → startAt=${game?.startAt}")
+        return game
     }
+
+
 
     fun delete(gameId: String): Boolean {
         return redisTemplate.delete("game:$gameId")
@@ -42,4 +48,13 @@ class GameRepository(
         return keys.mapNotNull { redisTemplate.opsForValue().get(it) }
             .firstOrNull { it.sessionId == sessionId }
     }
+    fun dumpAllGames() {
+        val keys = redisTemplate.keys("game:*") ?: return
+        println("Aktuelle Spiele in Redis:")
+        keys.forEach { key ->
+            val game = redisTemplate.opsForValue().get(key)
+            println("🔹 $key → gameId=${game?.gameId}, sessionId=${game?.sessionId}, startAt=${game?.startAt}, status=${game?.status}")
+        }
+    }
+
 }

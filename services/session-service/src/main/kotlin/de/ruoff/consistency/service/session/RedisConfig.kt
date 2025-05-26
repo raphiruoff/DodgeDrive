@@ -25,10 +25,7 @@ class RedisConfig {
         val template = RedisTemplate<String, GameSession>()
         template.setConnectionFactory(connectionFactory)
         template.keySerializer = StringRedisSerializer()
-
-        val serializer = GenericJackson2JsonRedisSerializer()
-
-        template.valueSerializer = serializer
+        template.valueSerializer = GenericJackson2JsonRedisSerializer()
         return template
     }
 
@@ -42,4 +39,8 @@ class RedisConfig {
         return template
     }
 
+    @Bean
+    fun stringRedisTemplate(connectionFactory: RedisConnectionFactory): org.springframework.data.redis.core.StringRedisTemplate {
+        return org.springframework.data.redis.core.StringRedisTemplate(connectionFactory)
+    }
 }

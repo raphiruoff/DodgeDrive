@@ -104,7 +104,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
             val pendingObstacles = remember { mutableStateListOf<ObstacleSpawnedEvent>() }
 
             LaunchedEffect(Unit) {
-                println("✅ Spielaufbau gestartet für gameId: $gameId")
+                println("Spielaufbau gestartet für gameId: $gameId")
 
                 WebSocketManager.connect(
                     gameId = gameId,
@@ -144,7 +144,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                     }
                     ,
                     onConnected = {
-                        println("✅ WebSocket ist jetzt bereit!")
+                        println("WebSocket ist jetzt bereit!")
                         isWebSocketReady = true
                     }
                 )
@@ -195,18 +195,12 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 carState.value = CarState(carX = centerX, carY = lowerY, angle = 0f)
 
                 // 5. Countdown vorbereiten mit korrekter Zeitumrechnung
-                println("🕒 Server startAt: $startAtServer")
-                val localNow = System.currentTimeMillis()
-                val elapsedNow = SystemClock.elapsedRealtime()
-                val timeOffset = elapsedNow - localNow
-                val gameStartElapsedTarget = startAtServer + timeOffset
-                val countdownStartElapsed = gameStartElapsedTarget - 3000L
-
-
-                // 6. Warten auf Countdown-Beginn
-                while (SystemClock.elapsedRealtime() < countdownStartElapsed) {
+                println("Server startAt: $startAtServer")
+                val countdownStartMillis = startAtServer - 3000L
+                while (System.currentTimeMillis() < countdownStartMillis) {
                     delay(1)
                 }
+
 
                 // 7. Countdown anzeigen
                 for (i in 3 downTo 1) {
@@ -216,7 +210,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 countdown = null
 
                 // 8. Warten bis Spielstart
-                while (SystemClock.elapsedRealtime() < gameStartElapsedTarget) {
+                while (System.currentTimeMillis() < startAtServer) {
                     delay(1)
                 }
 
@@ -224,9 +218,8 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 gameStartElapsed = SystemClock.elapsedRealtime()
                 val localStartTime = System.currentTimeMillis()
                 val diff = localStartTime - startAtServer
-                println("🚦 Spieler $username startet lokal um $localStartTime (startAt: $startAtServer, Differenz: ${diff}ms)")
-                val expectedStartAt = startAtServer + timeOffset
-                val latency = (gameStartElapsed - expectedStartAt).coerceAtLeast(0)
+                println("Spieler $username startet lokal um $localStartTime (startAt: $startAtServer, Differenz: ${diff}ms)")
+                val latency = diff.coerceAtLeast(0)
 
                 AllClients.logClient.logEventWithFixedDelay(
                     gameId = gameId,
@@ -238,13 +231,16 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
 
 
 
+
                 isStarted = true
                 gameStartDelay = SystemClock.elapsedRealtime() - gameStartTime
             }
+
+
             LaunchedEffect(Unit) {
                 withContext(Dispatchers.IO) {
                     AllClients.gameClient.measureLatency(gameId, username)?.let { latency ->
-                        println("📏 Direkte gRPC-Latenz (Client → Server): $latency ms")
+                        println("Direkte gRPC-Latenz (Client → Server): $latency ms")
 
                         AllClients.logClient.logEventWithFixedDelay(
                             gameId = gameId,
@@ -269,7 +265,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                         val waitTime = nextObstacle.timestamp - System.currentTimeMillis()
                         if (waitTime > 0) delay(waitTime)
 
-                        // 🟢 Nur anzeigen + loggen, wenn die ID noch nicht verarbeitet wurde
+                        // Nur anzeigen + loggen, wenn die ID noch nicht verarbeitet wurde
                         if (seenObstacleIds.add(nextObstacle.id)) {
                             val obstacle = Obstacle(
                                 id = nextObstacle.id,

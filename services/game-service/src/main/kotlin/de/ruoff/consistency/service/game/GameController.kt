@@ -88,7 +88,7 @@ class GameController(
     ) {
         val game = gameService.getGame(request.gameId)
         val response = game?.let {
-            GetGameResponse.newBuilder()
+            val builder = GetGameResponse.newBuilder()
                 .setGameId(it.gameId)
                 .setSessionId(it.sessionId)
                 .setPlayerA(it.playerA)
@@ -105,12 +105,22 @@ class GameController(
                             .build()
                     }
                 )
-                .build()
+
+            // Sicherer Umgang mit nullable `startAt`
+            it.startAt?.let { startAt ->
+                if (startAt > 0) {
+                    builder.setStartAt(startAt)
+                }
+            }
+
+            builder.build()
         } ?: GetGameResponse.getDefaultInstance()
 
         responseObserver.onNext(response)
         responseObserver.onCompleted()
     }
+
+
 
 
     override fun getGameBySession(
@@ -129,7 +139,7 @@ class GameController(
                 return
             }
 
-            val response = GetGameResponse.newBuilder()
+            val builder = GetGameResponse.newBuilder()
                 .setGameId(game.gameId)
                 .setSessionId(game.sessionId)
                 .setPlayerA(game.playerA)
@@ -137,8 +147,18 @@ class GameController(
                 .setStatus(game.status.name)
                 .setWinner(game.winner ?: "")
                 .putAllScores(game.scores)
-                .build()
+                .addAllFinishedPlayers(game.finishedPlayers)
+                .addAllObstacles(
+                    game.obstacles.map {
+                        Obstacle.newBuilder().setTimestamp(it.timestamp).setX(it.x).build()
+                    }
+                )
 
+            game.startAt?.let {
+                if (it > 0) builder.setStartAt(it)
+            }
+
+            val response = builder.build()
             responseObserver.onNext(response)
             responseObserver.onCompleted()
         } catch (e: Exception) {
@@ -150,6 +170,7 @@ class GameController(
             )
         }
     }
+
 
     override fun updateScore(
         request: UpdateScoreRequest,

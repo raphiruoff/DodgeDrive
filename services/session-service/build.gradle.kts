@@ -37,6 +37,7 @@ dependencies {
     implementation("org.springframework.grpc:spring-grpc-spring-boot-starter")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
+    implementation(project(":services:game-service"))
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     implementation("javax.annotation:javax.annotation-api:1.3.2")

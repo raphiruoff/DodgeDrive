@@ -14,6 +14,7 @@ import com.example.race.data.network.GameClient
 import com.example.race.data.network.TokenHolder
 import de.ruoff.consistency.service.session.Session
 import io.grpc.stub.StreamObserver
+import de.ruoff.consistency.service.game.GetGameResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -82,6 +83,7 @@ fun SessionScreen(
         if (safeSessionId != null && safeUsername != null) {
             while (true) {
                 delay(500L)
+
                 val session = withContext(Dispatchers.IO) {
                     sessionClient.getSession(safeSessionId)
                 }
@@ -94,7 +96,6 @@ fun SessionScreen(
                     if (session.status == "ACTIVE" && session.playerB != null) {
                         val partner = if (session.playerA == safeUsername) session.playerB else session.playerA
                         sessionPartner = partner
-
                         if (partner != null && !acceptedFriends.contains(partner)) {
                             acceptedFriends.add(partner)
                         }
@@ -103,23 +104,53 @@ fun SessionScreen(
 
                     if (session.status == "WAITING_FOR_START") {
                         val game = withContext(Dispatchers.IO) {
-                            GameClient().getGameBySession(safeSessionId)
+                            var game: GetGameResponse? = null
+
+                            repeat(40) { attempt ->
+                                println("🔍 [$attempt] Session $safeSessionId im Status WAITING_FOR_START – prüfe Spielstatus …")
+
+                                game = try {
+                                    AllClients.gameClient.getGameBySession(safeSessionId)
+                                } catch (e: Exception) {
+                                    println("❌ Fehler beim Abrufen des Spiels: ${e.message}")
+                                    null
+                                }
+
+                                if (game != null) {
+                                    println("📦 Spiel gefunden: gameId=${game!!.gameId}, startAt=${game!!.startAt}")
+                                }
+
+                                if (game != null && game!!.gameId.isNotBlank() && game!!.startAt > 0) {
+                                    println("🎮 Spiel bereit → Navigiere zu RaceGameScreen: gameId=${game!!.gameId}, startAt=${game!!.startAt}")
+                                    return@withContext game
+                                }
+
+                                delay(300)
+                            }
+
+                            println("⚠️ Kein gültiges Spiel nach mehreren Versuchen gefunden.")
+                            null
                         }
 
-                        if (game != null && game.gameId.isNotBlank()) {
-                            withContext(Dispatchers.IO) {
+                        if (game != null) {
+                            coroutineScope.launch(Dispatchers.IO) {
                                 AllClients.logClient.exportLogs(safeSessionId)
                             }
+
                             onNavigateToRaceGame(game.gameId, safeUsername)
                             break
-                        } else {
+                        }
+                        else {
                             infoMessage = "⏳ Warte auf Spielinitialisierung..."
                         }
                     }
+
                 }
             }
         }
     }
+
+
 
 
     DisposableEffect(Unit) {

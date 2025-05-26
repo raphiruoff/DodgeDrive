@@ -187,31 +187,30 @@ class GameService(
 
 
     fun startGame(gameId: String, callerUsername: String): Boolean {
-        val game = gameRepository.findById(gameId) ?: return false
-
-        if (game.startAt != null) {
-            return true
-        }
-
-        val updatedStartAt = System.currentTimeMillis() + 3000L
-
         val lockKey = "lock:game:$gameId"
+        gameRepository.dumpAllGames()
+
         if (!redisLockService.acquireLock(lockKey, 3000)) {
             return true // jemand anders setzt gerade startAt → ist okay
         }
 
         try {
-            val freshGame = gameRepository.findById(gameId)
-            if (freshGame?.startAt != null) {
+            val game = gameRepository.findById(gameId) ?: return false
+
+            if (game.startAt != null) {
                 return true
             }
 
+            val updatedStartAt = System.currentTimeMillis() + 3000L
+            println("startGame: setze startAt=$updatedStartAt")
+
             game.startAt = updatedStartAt
+
+            gameRepository.redisTemplate.execute { connection ->
+                connection.keyCommands().del("game:${game.gameId}".toByteArray())
+            }
+
             gameRepository.save(game)
-
-
-
-
 
             game.obstacles.forEach { obstacle ->
                 val spawnTime = updatedStartAt + obstacle.timestamp
@@ -225,14 +224,12 @@ class GameService(
                 )
             }
 
+            gameRepository.dumpAllGames()
+
             return true
         } finally {
             redisLockService.releaseLock(lockKey)
         }
     }
-
-
-
-
 
 }
