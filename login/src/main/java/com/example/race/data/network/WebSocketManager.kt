@@ -26,8 +26,11 @@ object WebSocketManager {
         gameId: String,
         onObstacle: (ObstacleSpawnedEvent) -> Unit = { println("⚠️ Kein Obstacle-Callback gesetzt: $it") },
         onScoreUpdate: (ScoreUpdateEvent) -> Unit = {},
-        onConnected: () -> Unit = {}  // NEU: Callback wenn Verbindung erfolgreich
+        onConnected: () -> Unit = {}
     ) {
+        println("🛰️ connect() aufgerufen mit gameId=$gameId um ${System.currentTimeMillis()}")
+        disconnect()
+
         println("🌐 WS Init: $SOCKET_URL")
         stompClient = Stomp.over(Stomp.ConnectionProvider.OKHTTP, SOCKET_URL)
         stompClient.withClientHeartbeat(10000).withServerHeartbeat(10000)
@@ -38,8 +41,7 @@ object WebSocketManager {
             println("💡 WS Lifecycle: $event")
             when (event.type) {
                 LifecycleEvent.Type.OPENED -> {
-                    println("✅ WS Verbunden – Subscriptions starten...")
-                    println("📡 WS Subscribing to on: $gameId")
+                    println(" WS Verbunden – Subscriptions starten für gameId=$gameId")
 
                     testDisposable = stompClient.topic("/topic/test").subscribe(
                         { frame -> println("✅ WS Test empfangen: ${frame.payload}") },
@@ -53,19 +55,21 @@ object WebSocketManager {
 
                     obstacleDisposable = stompClient.topic("/topic/obstacles/$gameId").subscribe(
                         { frame ->
-                            println("🧱 WS FrameRaw-Obstacle-JSON: ${frame.payload}")
+                            println(" WS FrameRaw-Obstacle-JSON: ${frame.payload}")
                             try {
                                 val obstacle = Gson().fromJson(frame.payload, ObstacleSpawnedEvent::class.java)
-                                println("✅ WS Obstacle geparst: $obstacle")
+                                println(" WS Obstacle geparst: $obstacle")
                                 globalOnObstacle?.invoke(obstacle)
                             } catch (e: Exception) {
-                                println("❌ Parsing-Fehler: ${e.message}")
+                                println("❌ Obstacle-Parsing-Fehler bei Payload: ${frame.payload}")
+                                e.printStackTrace()
                             }
                         },
                         { error ->
-                            println("❌ WS Fehler bei Obstacle-Subscription: ${error.message}")
+                            println(" WS Fehler bei Obstacle-Subscription: ${error.message}")
                         }
                     )
+                    println("📡 WS Subscribed to: /topic/obstacles/$gameId")
 
                     scoreDisposable = stompClient.topic("/topic/scores/$gameId").subscribe(
                         { frame ->
@@ -75,23 +79,24 @@ object WebSocketManager {
                                 println("✅ WS ScoreUpdate geparst: $scoreUpdate")
                                 globalOnScoreUpdate?.invoke(scoreUpdate)
                             } catch (e: Exception) {
-                                println("❌ ScoreUpdate-Parsing-Fehler: ${e.message}")
+                                println("ScoreUpdate-Parsing-Fehler bei Payload: ${frame.payload}")
+                                e.printStackTrace()
                             }
                         },
                         { error ->
-                            println("❌ WS Fehler bei ScoreUpdate-Subscription: ${error.message}")
+                            println(" WS Fehler bei ScoreUpdate-Subscription: ${error.message}")
                         }
                     )
+                    println(" WS Subscribed to: /topic/scores/$gameId")
 
                     sendEchoMessage("Hallo Server 👋")
 
-                    // ✅ Callback aufrufen, wenn alles bereit ist
                     onConnected()
                 }
 
                 LifecycleEvent.Type.ERROR -> println("❌ WS Lifecycle-Fehler: ${event.exception?.message}")
                 LifecycleEvent.Type.CLOSED -> println("🔌 WS Verbindung geschlossen.")
-                else -> println("ℹ️ WS Event: ${event.type}")
+                else -> println(" WS Event: ${event.type}")
             }
         }
 
@@ -100,17 +105,30 @@ object WebSocketManager {
     }
 
 
+
     fun disconnect() {
         if (::stompClient.isInitialized) {
             println("🔌 WS Trenne Verbindung...")
+
             lifecycleDisposable?.dispose()
+            lifecycleDisposable = null
+
             testDisposable?.dispose()
+            testDisposable = null
+
             echoDisposable?.dispose()
+            echoDisposable = null
+
             obstacleDisposable?.dispose()
-            stompClient.disconnect()
+            obstacleDisposable = null
+
             scoreDisposable?.dispose()
+            scoreDisposable = null
+
+            stompClient.disconnect()
         }
     }
+
 
     fun sendEchoMessage(message: String) {
         if (::stompClient.isInitialized && stompClient.isConnected) {
@@ -127,18 +145,7 @@ object WebSocketManager {
 
 
 
-    fun sendTestObstacle(gameId: String = "test") {
-        if (::stompClient.isInitialized && stompClient.isConnected) {
-            println("📤 Sende STOMP-Nachricht an /app/test-obstacle")
 
-            stompClient.send("/app/test-obstacle", "TestTrigger").subscribe(
-                { println("✅ Test-Obstacle-Request gesendet") },
-                { error -> println("❌ Fehler beim Senden des Test-Obstacles: ${error.message}") }
-            )
-        } else {
-            println("⚠️ STOMP-Client nicht verbunden")
-        }
-    }
 
 
 }

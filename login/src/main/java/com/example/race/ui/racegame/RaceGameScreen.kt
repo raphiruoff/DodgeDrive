@@ -61,6 +61,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
     val previousOpponentScore = remember { mutableStateOf(0) }
     val loggedObstacleIds = remember { mutableSetOf<String>() }
     var isWebSocketReady by remember { mutableStateOf(false) }
+    var isCarInitialized by remember { mutableStateOf(false) }
 
     val loggedKeys = remember { mutableSetOf<String>() }
 
@@ -104,8 +105,9 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
             val pendingObstacles = remember { mutableStateListOf<ObstacleSpawnedEvent>() }
 
             LaunchedEffect(Unit) {
-                println("Spielaufbau gestartet für gameId: $gameId")
+                println("🛠️ Spielaufbau gestartet für gameId: $gameId")
 
+                // 1. WebSocket verbinden
                 WebSocketManager.connect(
                     gameId = gameId,
                     onObstacle = { obstacle ->
@@ -116,9 +118,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                         println("📨 ScoreUpdate erhalten: ${event.username}, Score: ${event.newScore}")
 
                         if (event.username.equals(username, ignoreCase = true)) {
-                            // Lokaler Spieler
                             playerScore = event.newScore
-
                             val roundtripDelay = System.currentTimeMillis() - event.timestamp
                             println("🌀 RTT (gRPC → Backend → Kafka/WebSocket → Client): $roundtripDelay ms")
 
@@ -131,50 +131,33 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                                 score = event.newScore
                             )
                         } else {
-                            // Gegner → Score setzen
                             opponentScore.value = event.newScore
-
-//                            logEventOnceLocal(
-//                                eventType = "opponent_updated",
-//                                scheduledAt = event.timestamp,
-//                                score = event.newScore,
-//                                opponentUsername = event.username
-//                            )
                         }
-                    }
-                    ,
+                    },
                     onConnected = {
-                        println("WebSocket ist jetzt bereit!")
+                        println("✅ WebSocket ist jetzt verbunden & bereit")
                         isWebSocketReady = true
                     }
                 )
 
-
-
-
-                // 2. Warte explizit, bis WebSocket verbunden & Subscriptions bereit sind
+                // 2. Warte auf WebSocket-Readiness
                 while (!isWebSocketReady) {
                     println("⏳ Warte auf WebSocket readiness...")
                     delay(100)
                 }
 
-                // 3. Spiel starten – Latenz des gRPC-Calls messen (Client → Server → Client)
+                // 3. Spielstart über gRPC
                 val grpcSentAt = System.currentTimeMillis()
-
                 val (success, startAtServer, _) = AllClients.gameClient.startGameByGameId(gameId, username)
 
-                val effectiveStartAt = if (success && startAtServer > 0L) {
-                    startAtServer
-                } else {
-                    AllClients.gameClient.getGame(gameId)?.startAt ?: run {
-                        println("Kein gültiger Startzeitpunkt verfügbar.")
-                        return@LaunchedEffect
-                    }
+                if (!success || startAtServer <= 0L) {
+                    println("❌ Spielstart fehlgeschlagen – kein gültiger startAt")
+                    return@LaunchedEffect
                 }
 
+                val grpcRtt = System.currentTimeMillis() - grpcSentAt
                 AllClients.gameClient.measureLatency(gameId, username)?.let { latency ->
-                    println("📏 Direkte gRPC-Latenz (Client → Server): $latency ms")
-
+                    println("Direkte gRPC-Latenz: $latency ms")
                     AllClients.logClient.logEventWithFixedDelay(
                         gameId = gameId,
                         username = username,
@@ -183,24 +166,34 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                         delayMs = latency
                     )
                 }
-                val grpcRtt = System.currentTimeMillis() - grpcSentAt
 
+                // 4. Auto initialisieren
+                carState.value = CarState(carX = centerX, carY = lowerY, angle = 0f)
+                isCarInitialized = true
 
-                if (!success) {
-                    println("❌ Spielstart fehlgeschlagen für gameId: $gameId")
-                    return@LaunchedEffect
+                // 5. Warte auf Hindernisse oder Timeout
+                val obstacleWaitStart = System.currentTimeMillis()
+                val obstacleWaitTimeout = 2000L
+                val minObstacles = 3
+
+                println("⏳ Warte auf $minObstacles Hindernisse oder $obstacleWaitTimeout ms...")
+                while (System.currentTimeMillis() - obstacleWaitStart < obstacleWaitTimeout) {
+                    if (pendingObstacles.size >= minObstacles) {
+                        println("✅ Genug Hindernisse empfangen: ${pendingObstacles.size}")
+                        break
+                    }
+                    delay(50)
                 }
 
-                // 4. Auto auf Startposition setzen
-                carState.value = CarState(carX = centerX, carY = lowerY, angle = 0f)
+                if (pendingObstacles.isEmpty()) {
+                    println("⚠️ Kein einziges Hindernis empfangen – Spiel startet trotzdem")
+                }
 
-                // 5. Countdown vorbereiten mit korrekter Zeitumrechnung
-                println("Server startAt: $startAtServer")
+                // 6. Countdown warten
                 val countdownStartMillis = startAtServer - 3000L
                 while (System.currentTimeMillis() < countdownStartMillis) {
                     delay(1)
                 }
-
 
                 // 7. Countdown anzeigen
                 for (i in 3 downTo 1) {
@@ -209,32 +202,30 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 }
                 countdown = null
 
-                // 8. Warten bis Spielstart
+                // 8. Warte auf offiziellen Startzeitpunkt
                 while (System.currentTimeMillis() < startAtServer) {
                     delay(1)
                 }
 
-                // 9. Spielstart lokal registrieren & Logging
+                // 9. Spielstart lokal registrieren
                 gameStartElapsed = SystemClock.elapsedRealtime()
                 val localStartTime = System.currentTimeMillis()
                 val diff = localStartTime - startAtServer
-                println("Spieler $username startet lokal um $localStartTime (startAt: $startAtServer, Differenz: ${diff}ms)")
-                val latency = diff.coerceAtLeast(0)
+                println("🚗 Spieler $username startet lokal um $localStartTime (startAt=$startAtServer, Δ=${diff}ms)")
 
                 AllClients.logClient.logEventWithFixedDelay(
                     gameId = gameId,
                     username = username,
                     eventType = "game_start",
                     scheduledAt = startAtServer,
-                    delayMs = latency
+                    delayMs = diff.coerceAtLeast(0)
                 )
 
-
-
-
+                // 10. Spiel starten
                 isStarted = true
                 gameStartDelay = SystemClock.elapsedRealtime() - gameStartTime
             }
+
 
 
             LaunchedEffect(Unit) {
@@ -368,7 +359,9 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
             }
 
             ScrollingRaceTrack()
-            Car(carState = carState.value)
+            if (isCarInitialized) {
+                Car(carState = carState.value)
+            }
             obstacles.forEach {
                 Image(
                     painter = painterResource(id = R.drawable.obstacle),
@@ -459,6 +452,8 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                         }
                         delay(250)
                     }
+                    WebSocketManager.disconnect()
+
                 }
 
 

@@ -132,34 +132,40 @@ class SessionService(
 
             println("Session geladen: ${session.sessionId}, Spieler: ${session.playerA} vs ${session.playerB}")
 
-            // Prüfe, ob bereits ein Spiel existiert
+            // Prüfe, ob bereits ein gültiges Spiel existiert (inkl. Hindernisse)
             val existingGame = gameClient.getGameBySession(sessionId)
-            if (existingGame != null && existingGame.startAt > 0L) {
-                println("Spiel existiert schon: ${existingGame.gameId}, startAt=${existingGame.startAt}")
-                return Session.StartGameResponse.newBuilder()
-                    .setSuccess(true)
-                    .setStartAt(existingGame.startAt)
-                    .setGameId(existingGame.gameId)
-                    .build()
+            if (existingGame != null) {
+                println("🔍 Vorhandenes Spiel gefunden: gameId=${existingGame.gameId}, startAt=${existingGame.startAt}, obstacles=${existingGame.obstaclesList.size}")
+
+                if (existingGame.startAt > 0L && existingGame.obstaclesList.isNotEmpty()) {
+                    println("✅ Wiederverwendbares Spiel gefunden")
+                    return Session.StartGameResponse.newBuilder()
+                        .setSuccess(true)
+                        .setStartAt(existingGame.startAt)
+                        .setGameId(existingGame.gameId)
+                        .build()
+                } else {
+                    println("⚠️ Ungültiges Spiel – wird ignoriert (fehlende Hindernisse oder startAt=0)")
+                }
             }
 
-            // Neues Spiel erzeugen mit Retry, falls keine Hindernisse generiert werden
+            // Neues Spiel erzeugen mit Retry
             println("🆕 Spielerstellung wird versucht...")
             var successfulGameId: String? = null
             val maxRetries = 3
 
             repeat(maxRetries) { attempt ->
-                println("Spiel-Erstellungsversuch ${attempt + 1} von $maxRetries")
+                println("🛠 Spiel-Erstellungsversuch ${attempt + 1} von $maxRetries")
                 val candidateGameId = gameClient.createGame(sessionId, session.playerA, session.playerB!!)
                 val candidateGame = candidateGameId?.let { gameClient.getGame(it) }
 
                 if (candidateGame != null && candidateGame.obstaclesList.isNotEmpty()) {
-                    println(" Spiel mit Hindernissen erstellt: gameId=$candidateGameId")
+                    println("✅ Neues Spiel mit Hindernissen erstellt: gameId=$candidateGameId")
                     successfulGameId = candidateGameId
                     return@repeat
                 }
 
-                println("Spiel hatte keine Hindernisse – erneuter Versuch...")
+                println("❌ Keine Hindernisse – versuche erneut...")
                 Thread.sleep(200)
             }
 
@@ -181,7 +187,7 @@ class SessionService(
 
             while (System.currentTimeMillis() < timeoutAt) {
                 val g = gameClient.getGame(gameId)
-                println(" startAt Check: gameId=$gameId → startAt=${g?.startAt}")
+                println("⏳ startAt Check: gameId=$gameId → startAt=${g?.startAt}")
 
                 if (g?.startAt != null && g.startAt > 0L) {
                     finalGame = g
@@ -192,11 +198,11 @@ class SessionService(
             }
 
             if (finalGame == null) {
-                println(" Spielstart fehlgeschlagen: startAt blieb 0")
+                println("❌ Spielstart fehlgeschlagen: startAt blieb 0")
                 return Session.StartGameResponse.newBuilder().setSuccess(false).build()
             }
 
-            println(" Spiel erfolgreich gestartet: gameId=${finalGame.gameId}, startAt=${finalGame.startAt}")
+            println("🎉 Spiel erfolgreich gestartet: gameId=${finalGame.gameId}, startAt=${finalGame.startAt}")
             return Session.StartGameResponse.newBuilder()
                 .setSuccess(true)
                 .setStartAt(finalGame.startAt)
@@ -204,12 +210,12 @@ class SessionService(
                 .build()
 
         } catch (e: Exception) {
-            println("triggerGameStart: Fehler: ${e.message}")
+            println("🛑 triggerGameStart: Fehler: ${e.message}")
             e.printStackTrace()
             return Session.StartGameResponse.newBuilder().setSuccess(false).build()
         } finally {
             redisLockService.releaseLock(lockKey)
-            println(" Lock freigegeben für $sessionId")
+            println("🔓 Lock freigegeben für $sessionId")
         }
     }
 

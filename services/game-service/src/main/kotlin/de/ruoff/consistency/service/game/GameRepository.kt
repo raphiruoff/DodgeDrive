@@ -37,11 +37,22 @@ class GameRepository(
 
     fun finishGame(gameId: String, winner: String): Boolean {
         val game = findById(gameId) ?: return false
+        println("FINSH GAME LOG}")
+
         game.status = GameStatus.FINISHED
         game.winner = winner
         save(game)
+
+        redisTemplate.delete("game:$gameId")
+        redisTemplate.delete("session:${game.sessionId}")
+
+        delete(gameId)
+
+        println(" Game & Session bereinigt: gameId=$gameId, sessionId=${game.sessionId}")
+
         return true
     }
+
 
     fun findBySessionId(sessionId: String): GameModel? {
         val keys = redisTemplate.keys("game:*") ?: return null

@@ -9,6 +9,7 @@ import de.ruoff.consistency.service.game.events.GameLogProducer
 import de.ruoff.consistency.service.game.events.ScoreProducer
 import org.springframework.stereotype.Service
 import java.util.*
+import org.springframework.data.redis.connection.RedisConnection
 
 @Service
 class GameService(
@@ -35,7 +36,6 @@ class GameService(
         }
 
         try {
-
             gameRepository.findBySessionId(sessionId)?.let {
                 return it
             }
@@ -45,7 +45,12 @@ class GameService(
             }
 
             val gameId = UUID.randomUUID().toString()
-            val obstacles = generateObstacles(gameId)  // Noch kein startAt nötig
+            val obstacles = generateObstacles(gameId)
+
+            // 🛡️ Sicherstellen, dass Hindernisse da sind
+            require(obstacles.isNotEmpty()) {
+                "Fehler: Keine Hindernisse generiert für Spiel $gameId"
+            }
 
             val game = GameModel(
                 gameId = gameId,
@@ -58,6 +63,8 @@ class GameService(
 
             gameRepository.save(game)
 
+            println("✅ Spiel $gameId erstellt mit ${obstacles.size} Hindernissen")
+
             return game
         } finally {
             redisLockService.releaseLock(lockKey)
@@ -68,8 +75,9 @@ class GameService(
 
 
 
+
     private fun generateObstacles(gameId: String): List<ObstacleModel> {
-        val obstacleCount = 30
+        val obstacleCount = 10
         val intervalMs = 3500L
         val lanes = listOf(0.33f, 0.5f, 0.66f)
         val seed = gameId.hashCode().toLong()
@@ -152,15 +160,14 @@ class GameService(
 
 
     fun finishGame(gameId: String, player: String): Boolean {
-        // 1. Spieler als fertig markieren
+        println("🏁 finishGame() aufgerufen: gameId=$gameId, player=$player")
+
         val game = gameRepository.findById(gameId) ?: return false
         game.finishedPlayers.add(player)
         gameRepository.save(game)
 
-        // 2. Aktualisierte Daten holen (um Scores des Gegners zu bekommen)
         val updated = gameRepository.findById(gameId) ?: return false
 
-        // 3. Prüfen ob beide fertig sind
         if (updated.finishedPlayers.containsAll(listOf(updated.playerA, updated.playerB))) {
             val scoreA = updated.scores[updated.playerA] ?: 0
             val scoreB = updated.scores[updated.playerB] ?: 0
@@ -179,11 +186,18 @@ class GameService(
                 scoreProducer.send(ScoreEvent(username = updated.playerB, score = scoreB))
             }
 
+            println("🧨 Achtung: FLUSHALL – kompletter Redis-Inhalt wird gelöscht")
+            gameRepository.redisTemplate.execute { it.flushAll() }
+            Thread.sleep(500) // 🔄 kurze Pause, um asynchrone Prozesse nach dem Flush zu stabilisieren
 
+
+
+            println("🧹 Game & Session + Redis komplett bereinigt: gameId=$gameId")
         }
 
         return true
     }
+
 
 
     fun startGame(gameId: String, callerUsername: String): Boolean {
@@ -206,11 +220,12 @@ class GameService(
 
             game.startAt = updatedStartAt
 
-            gameRepository.redisTemplate.execute { connection ->
-                connection.keyCommands().del("game:${game.gameId}".toByteArray())
-            }
+//            gameRepository.redisTemplate.execute { connection ->
+//                connection.keyCommands().del("game:${game.gameId}".toByteArray())
+//            }
 
             gameRepository.save(game)
+            Thread.sleep(1200)
 
             game.obstacles.forEach { obstacle ->
                 val spawnTime = updatedStartAt + obstacle.timestamp
