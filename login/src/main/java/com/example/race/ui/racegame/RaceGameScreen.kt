@@ -157,7 +157,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
 
                 val grpcRtt = System.currentTimeMillis() - grpcSentAt
                 AllClients.gameClient.measureLatency(gameId, username)?.let { latency ->
-                    println("Direkte gRPC-Latenz: $latency ms")
+                    println("📏 Direkte gRPC-Latenz: $latency ms")
                     AllClients.logClient.logEventWithFixedDelay(
                         gameId = gameId,
                         username = username,
@@ -446,7 +446,10 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                             gameResultMessage.value = when {
                                 winner == username -> "🏆 Du hast gewonnen!"
                                 winner == "draw" -> "🤝 Unentschieden"
-                                else -> "😢 Du hast verloren"
+                                else -> {
+                                    isOpponentGameOver.value = true
+                                    "😢 Du hast verloren"
+                                }
                             }
                             break
                         }

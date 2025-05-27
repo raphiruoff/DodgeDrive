@@ -186,13 +186,16 @@ class GameService(
                 scoreProducer.send(ScoreEvent(username = updated.playerB, score = scoreB))
             }
 
-            println("🧨 Achtung: FLUSHALL – kompletter Redis-Inhalt wird gelöscht")
-            gameRepository.redisTemplate.execute { it.flushAll() }
-            Thread.sleep(500) // 🔄 kurze Pause, um asynchrone Prozesse nach dem Flush zu stabilisieren
+                gameRepository.redisTemplate.delete("game:$gameId")
+                gameRepository.redisTemplate.delete("session:${game.sessionId}")
+                gameRepository.delete(gameId)
 
 
+//            Thread.sleep(5000)
+//            gameRepository.redisTemplate.execute { it.flushAll() }
+//            Thread.sleep(500)
 
-            println("🧹 Game & Session + Redis komplett bereinigt: gameId=$gameId")
+
         }
 
         return true
