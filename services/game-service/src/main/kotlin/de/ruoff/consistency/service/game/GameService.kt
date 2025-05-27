@@ -77,7 +77,7 @@ class GameService(
 
 
     private fun generateObstacles(gameId: String): List<ObstacleModel> {
-        val obstacleCount = 10
+        val obstacleCount = 30
         val intervalMs = 3500L
         val lanes = listOf(0.33f, 0.5f, 0.66f)
         val seed = gameId.hashCode().toLong()
@@ -119,38 +119,36 @@ class GameService(
     fun incrementScore(gameId: String, player: String, obstacleId: String, originTimestamp: Long?): Boolean {
         val receivedAt = System.currentTimeMillis()
         val timestamp = originTimestamp ?: receivedAt
-        val delayMs = originTimestamp?.let { receivedAt - it } ?: 0L
 
+        val game = gameRepository.findById(gameId) ?: return false
 
-        val game = gameRepository.findById(gameId) ?: run {
-            return false
+        synchronized(game) {
+            val playerSet = game.scoredByPlayer.getOrPut(player) { mutableSetOf() }
+
+            if (!playerSet.add(obstacleId)) {
+                println("⚠️ Obstacle $obstacleId wurde bereits für $player gewertet – abgelehnt.")
+                return false
+            }
+
+            val newScore = (game.scores[player] ?: 0) + 1
+            game.scores[player] = newScore
+            gameRepository.save(game)
+
+            gameEventProducer.sendScoreUpdate(
+                ScoreUpdateEvent(
+                    gameId = gameId,
+                    username = player,
+                    newScore = newScore,
+                    timestamp = timestamp
+                )
+            )
         }
-
-        val playerSet = game.scoredByPlayer.getOrPut(player) { mutableSetOf() }
-
-        if (playerSet.contains(obstacleId)) {
-            return false
-        }
-
-        playerSet.add(obstacleId)
-
-        val newScore = (game.scores[player] ?: 0) + 1
-        game.scores[player] = newScore
-        gameRepository.save(game)
-
-
-        // 1. Sende ScoreUpdateEvent → an den Spieler selbst
-        gameEventProducer.sendScoreUpdate(
-            ScoreUpdateEvent(gameId, player, newScore, timestamp)
-        )
-
-
-        // 3. Gegner bestimmen
-        val opponent = if (player == game.playerA) game.playerB else game.playerA
-
 
         return true
     }
+
+
+
 
 
 
@@ -208,7 +206,7 @@ class GameService(
         gameRepository.dumpAllGames()
 
         if (!redisLockService.acquireLock(lockKey, 3000)) {
-            return true // jemand anders setzt gerade startAt → ist okay
+            return true
         }
 
         try {
@@ -218,20 +216,24 @@ class GameService(
                 return true
             }
 
-            val updatedStartAt = System.currentTimeMillis() + 3000L
-            println("startGame: setze startAt=$updatedStartAt")
 
-            game.startAt = updatedStartAt
 
 //            gameRepository.redisTemplate.execute { connection ->
 //                connection.keyCommands().del("game:${game.gameId}".toByteArray())
 //            }
 
+            val countdownDelay = 3000L
+            val spawnDelay = 1200L
+            val totalDelay = countdownDelay + spawnDelay
+
+            val startAt = System.currentTimeMillis() + totalDelay
+            game.startAt = startAt
             gameRepository.save(game)
-            Thread.sleep(1200)
+
+            Thread.sleep(1200L)
 
             game.obstacles.forEach { obstacle ->
-                val spawnTime = updatedStartAt + obstacle.timestamp
+                val spawnTime = startAt + obstacle.timestamp
                 gameEventProducer.sendObstacleSpawned(
                     ObstacleSpawnedEvent(
                         gameId = gameId,
@@ -241,6 +243,7 @@ class GameService(
                     )
                 )
             }
+
 
             gameRepository.dumpAllGames()
 

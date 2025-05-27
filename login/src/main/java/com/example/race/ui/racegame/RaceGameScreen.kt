@@ -52,6 +52,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
     var gameStartDelay by remember { mutableStateOf(0L) }
     var opponentUpdateDelay by remember { mutableStateOf(0L) }
     var playerScore by remember { mutableStateOf(0) }
+    val scorableObstacles = remember { mutableStateListOf<Obstacle>() }
 
     var isStarted by remember { mutableStateOf(false) }
     var countdown by remember { mutableStateOf<Int?>(null) }
@@ -288,21 +289,19 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
             }
 
 
-
-
-
-
-
+            val scoreQueue = remember { mutableStateListOf<Obstacle>() } // GANZ OBEN
 
             if (isStarted) {
 
-                // Spiel-Loop: Hindernisse bewegen, Score erhöhen
+                // 1. Render Tick für Game Loop
                 LaunchedEffect(Unit) {
                     while (true) {
                         renderTick.value = System.currentTimeMillis()
                         delay(16L) // 60 FPS
                     }
                 }
+
+                // 2. SPIEL-LOGIK mit Bewegungen
                 LaunchedEffect(renderTick.value) {
                     val iterator = obstacles.iterator()
                     val toRemove = mutableListOf<Obstacle>()
@@ -312,31 +311,44 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                             val obstacle = iterator.next()
                             obstacle.y += 8f
 
-                            // 🟥 Kollisionserkennung
                             if (checkCollision(carState.value, obstacle)) {
                                 isGameOver.value = true
                             }
 
-                            // ✅ Hindernis wurde passiert und noch nicht gezählt
-                            if (obstacle.y > screenHeight && !obstacle.scored) {
+                            // Score nur, wenn unterhalb Schwelle & noch nicht gescored
+                            if (!obstacle.scored && obstacle.y > screenHeight - obstacle.height / 2) {
+                                println("🧮 Versuche Score für Obstacle: ${obstacle.id}")
                                 obstacle.scored = true
                                 toRemove.add(obstacle)
+                                scoreQueue.add(obstacle)
+                            }
+                        }
+                    }
 
-                                // 🔹 Zeitstempel möglichst nah am Event erfassen!
+                    obstacles.removeAll(toRemove)
+                }
+
+
+                LaunchedEffect(Unit) {
+                    while (true) {
+                        if (scoreQueue.isNotEmpty()) {
+                            val obstacle = scoreQueue.removeFirstOrNull()
+                            if (obstacle != null) {
                                 val originTimestamp = System.currentTimeMillis()
-
-                                // 🔹 gRPC-Call (asynchron)
                                 val success = AllClients.gameClient.incrementScore(
                                     gameId = gameId,
                                     player = username,
                                     obstacleId = obstacle.id,
                                     originTimestamp = originTimestamp
                                 )
-
-                                if (success) {
+                                if (!success) {
+                                    println("Score konnte nicht erhöht werden für ${obstacle.id}")
+                                    println("Wurde trotzdem als scored markiert: ${obstacle.scored}")
+                                    obstacle.scored = false
+                                } else {
+                                    println("✅ incrementScore für ${obstacle.id} (wirklich gescored!)")
                                     val now = System.currentTimeMillis()
                                     val delay = now - originTimestamp
-
                                     AllClients.logClient.logEventWithFixedDelay(
                                         gameId = gameId,
                                         username = username,
@@ -346,17 +358,14 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                                         score = playerScore
                                     )
                                 }
-
                             }
                         }
+                        delay(30L)
                     }
-
-                    obstacles.removeAll(toRemove)
                 }
 
-
-
             }
+
 
             ScrollingRaceTrack()
             if (isCarInitialized) {
@@ -434,6 +443,9 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
             }
 
             if (isGameOver.value) {
+                obstacles.filter { !it.scored }.forEach {
+                    println("⚠️ Nicht gescored: ${it.id}, y=${it.y}")
+                }
                 LaunchedEffect(true) {
                     AllClients.gameClient.finishGame(gameId, username)
                     AllClients.logClient.exportLogs(gameId)
