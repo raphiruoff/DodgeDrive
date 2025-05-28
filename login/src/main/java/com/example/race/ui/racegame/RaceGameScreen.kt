@@ -130,16 +130,21 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                         if (event.username.equals(username, ignoreCase = true)) {
                             playerScore = event.newScore
                             val roundtripDelay = System.currentTimeMillis() - event.timestamp
-                            println("🌀 RTT (gRPC → Backend → Kafka/WebSocket → Client): $roundtripDelay ms")
+
+                            val arrivalTime = System.currentTimeMillis() - timeOffset
+                            val delay = arrivalTime - event.timestamp
 
                             AllClients.logClient.logEventWithFixedDelay(
                                 gameId = gameId,
                                 username = username,
                                 eventType = "score_roundtrip",
                                 scheduledAt = event.timestamp,
-                                delayMs = roundtripDelay,
+                                delayMs = delay.coerceAtLeast(0),
                                 score = event.newScore
                             )
+
+
+
                         } else {
                             opponentScore.value = event.newScore
                         }
@@ -159,7 +164,17 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 // 3. Spielstart über gRPC
                 val grpcSentAt = System.currentTimeMillis()
                 val (success, startAtServer, _) = AllClients.gameClient.startGameByGameId(gameId, username)
+                val grpcReceivedAt = System.currentTimeMillis()
 
+                val grpcDuration = grpcReceivedAt - grpcSentAt
+
+                AllClients.logClient.logEventWithFixedDelay(
+                    gameId = gameId,
+                    username = username,
+                    eventType = "start_grpc_duration",
+                    scheduledAt = grpcSentAt,
+                    delayMs = grpcDuration
+                )
                 if (!success || startAtServer <= 0L) {
                     println("Spielstart fehlgeschlagen – kein gültiger startAt")
                     return@LaunchedEffect
@@ -201,14 +216,16 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 gameStartElapsed = SystemClock.elapsedRealtime()
                 val localSyncedStart = System.currentTimeMillis() - timeOffset
                 val diff = localSyncedStart - startAtServer
-
-                AllClients.logClient.logEventWithFixedDelay(
-                    gameId = gameId,
-                    username = username,
-                    eventType = "game_start",
-                    scheduledAt = startAtServer,
-                    delayMs = diff.coerceAtLeast(0)
-                )
+                val now = System.currentTimeMillis()
+                val diff_log = now - startAtServer
+//                AllClients.logClient.logEventWithFixedDelay(
+//                    gameId = gameId,
+//                    username = username,
+//                    eventType = "game_start",
+//                    scheduledAt = startAtServer,
+//                    originTimestamp = now,
+//                    delayMs = diff_log.coerceAtLeast(0)
+//                )
 
                 // 8. Spiel starten
                 isStarted = true
@@ -241,8 +258,9 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                         val waitTime = nextObstacle.timestamp - (System.currentTimeMillis() - timeOffset)
                         if (waitTime > 0) delay(waitTime)
 
-                        // Nur anzeigen + loggen, wenn die ID noch nicht verarbeitet wurde
                         if (seenObstacleIds.add(nextObstacle.id)) {
+                            val now = System.currentTimeMillis()
+
                             val obstacle = Obstacle(
                                 id = nextObstacle.id,
                                 x = nextObstacle.x * screenWidth,
@@ -251,18 +269,21 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                             )
                             obstacles.add(obstacle)
 
+                            val arrivalTime = System.currentTimeMillis() - timeOffset
+                            val delayMs = arrivalTime - nextObstacle.timestamp
+                            AllClients.logClient.logEventWithFixedDelay(
+                                gameId = gameId,
+                                username = username,
+                                eventType = "obstacle_spawned_latency",
+                                scheduledAt = nextObstacle.timestamp,
+                                delayMs = delayMs.coerceAtLeast(0)
+                            )
+
+
                             logEventOnceLocal(
                                 eventType = "obstacle_spawned",
                                 scheduledAt = nextObstacle.timestamp
                             )
-                            logEventOnceLocal(
-                                eventType = "obstacle_spawned_latency",
-                                scheduledAt = nextObstacle.timestamp
-                            )
-
-
-
-
                         }
 
                         pendingObstacles.remove(nextObstacle)
@@ -271,6 +292,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                     }
                 }
             }
+
 
 
             val scoreQueue = remember { mutableStateListOf<Obstacle>() } // GANZ OBEN
@@ -336,7 +358,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                                     AllClients.logClient.logEventWithFixedDelay(
                                         gameId = gameId,
                                         username = username,
-                                        eventType = "score_updated",
+                                        eventType = "score_grpc_duration",
                                         scheduledAt = originTimestamp,
                                         delayMs = delay,
                                         score = playerScore

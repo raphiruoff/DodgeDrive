@@ -134,28 +134,21 @@ class GameService(
             game.scores[player] = newScore
             gameRepository.save(game)
 
+            val serverTimestamp = System.currentTimeMillis()
+
             gameEventProducer.sendScoreUpdate(
                 ScoreUpdateEvent(
                     gameId = gameId,
                     username = player,
                     newScore = newScore,
-                    timestamp = timestamp
+                    timestamp = serverTimestamp
                 )
             )
+
         }
 
         return true
     }
-
-
-
-
-
-
-
-
-
-
 
     fun finishGame(gameId: String, player: String): Boolean {
         println("🏁 finishGame() aufgerufen: gameId=$gameId, player=$player")

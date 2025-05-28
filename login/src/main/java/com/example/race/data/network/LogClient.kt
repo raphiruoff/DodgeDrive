@@ -96,7 +96,8 @@ class LogClient : BaseClient(overridePort = 9098) {
         scheduledAt: Long,
         delayMs: Long,
         score: Int? = null,
-        opponentUsername: String? = null
+        opponentUsername: String? = null,
+        originTimestamp: Long? = null
     ): Boolean {
         val eventId = generateEventId(gameId, eventType, username, scheduledAt)
 
@@ -109,7 +110,7 @@ class LogClient : BaseClient(overridePort = 9098) {
                 .setUsername(username)
                 .setEventType(eventType)
                 .setDelayMs(delayMs)
-                .setOriginTimestamp(scheduledAt)
+                .setOriginTimestamp(originTimestamp ?: scheduledAt) // explizit oder fallback
 
             score?.let { requestBuilder.score = it }
             opponentUsername?.let { requestBuilder.opponentUsername = it }

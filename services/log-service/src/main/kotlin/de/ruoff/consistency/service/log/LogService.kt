@@ -53,15 +53,16 @@ class LogService(
         val relevantEvents = setOf(
             "game_start",
             "obstacle_spawned_latency",
-            "score_updated",
+            "score_grpc_duration",
             "score_roundtrip",
            // "obstacle_spawned",
-            "invitation_accepted"
+            "invitation_accepted",
+            "start_grpc_duration"
         )
 
         val logs = repository.findByGameId(gameId)
             .filter { it.eventType in relevantEvents }
-            .filter { it.delayMs <= 3000 }
+         //   .filter { it.delayMs <= 3000 }
 
         if (logs.isEmpty()) {
             println("Keine Logs für gameId=$gameId gefunden.")
