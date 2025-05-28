@@ -53,9 +53,7 @@ class LogService(
         val relevantEvents = setOf(
             "game_start",
             "obstacle_spawned_latency",
-            "score_grpc_duration",
             "score_roundtrip",
-           // "obstacle_spawned",
             "invitation_accepted",
             "start_grpc_duration"
         )

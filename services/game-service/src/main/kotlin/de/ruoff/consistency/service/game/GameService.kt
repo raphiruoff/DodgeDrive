@@ -216,7 +216,7 @@ class GameService(
 //            }
 
            val countdownDelay = 3000L
-            val spawnDelay = 1200L
+            val spawnDelay = 2000L
             val bufferTime = 2000L
 
             val totalDelay = countdownDelay + spawnDelay + bufferTime

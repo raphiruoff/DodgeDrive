@@ -321,9 +321,9 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                                 isGameOver.value = true
                             }
 
-                            // Score nur, wenn unterhalb Schwelle & noch nicht gescored
-                            if (!obstacle.scored && obstacle.y > screenHeight - obstacle.height / 2) {
-                                println("🧮 Versuche Score für Obstacle: ${obstacle.id}")
+                            val scoringThreshold = screenHeight - 150f
+
+                            if (!obstacle.scored && obstacle.y > scoringThreshold) {
                                 obstacle.scored = true
                                 toRemove.add(obstacle)
                                 scoreQueue.add(obstacle)
@@ -340,35 +340,27 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                         if (scoreQueue.isNotEmpty()) {
                             val obstacle = scoreQueue.removeFirstOrNull()
                             if (obstacle != null) {
-                                val originTimestamp = System.currentTimeMillis()
+                                val grpcSentAt = System.currentTimeMillis()
                                 val success = AllClients.gameClient.incrementScore(
                                     gameId = gameId,
                                     player = username,
                                     obstacleId = obstacle.id,
-                                    originTimestamp = originTimestamp
+                                    originTimestamp = grpcSentAt
                                 )
+                                val grpcReceivedAt = System.currentTimeMillis()
+
+
                                 if (!success) {
-                                    println("Score konnte nicht erhöht werden für ${obstacle.id}")
-                                    println("Wurde trotzdem als scored markiert: ${obstacle.scored}")
                                     obstacle.scored = false
                                 } else {
-                                    println("✅ incrementScore für ${obstacle.id} (wirklich gescored!)")
-                                    val now = System.currentTimeMillis()
-                                    val delay = now - originTimestamp
-                                    AllClients.logClient.logEventWithFixedDelay(
-                                        gameId = gameId,
-                                        username = username,
-                                        eventType = "score_grpc_duration",
-                                        scheduledAt = originTimestamp,
-                                        delayMs = delay,
-                                        score = playerScore
-                                    )
+                                    println("incrementScore für ${obstacle.id} (wirklich gescored!)")
                                 }
                             }
                         }
                         delay(30L)
                     }
                 }
+
 
             }
 
