@@ -55,7 +55,7 @@ class LogService(
             "obstacle_spawned_latency",
             "score_updated",
             "score_roundtrip",
-            "obstacle_spawned",
+           // "obstacle_spawned",
             "invitation_accepted"
         )
 

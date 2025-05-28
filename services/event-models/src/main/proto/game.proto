@@ -1,4 +1,5 @@
 syntax = "proto3";
+import "google/protobuf/empty.proto";
 
 package de.ruoff.consistency.service.game;
 option java_multiple_files = true;
@@ -12,6 +13,7 @@ service GameService {
     rpc IncrementScore(IncrementScoreRequest) returns (IncrementScoreResponse);
     rpc StartGame(StartGameRequest) returns (StartGameResponse);
     rpc MeasureLatency(MeasureLatencyRequest) returns (MeasureLatencyResponse);
+    rpc GetServerTime (google.protobuf.Empty) returns (TimeResponse);
 
 }
 
@@ -108,4 +110,7 @@ message MeasureLatencyRequest {
 
 message MeasureLatencyResponse {
     int64 receivedAt = 1;
+}
+message TimeResponse {
+    int64 currentTimeMillis = 1;
 }

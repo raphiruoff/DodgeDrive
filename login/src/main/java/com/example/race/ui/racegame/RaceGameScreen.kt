@@ -47,6 +47,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
     val isGameOver = remember { mutableStateOf(false) }
     val isOpponentGameOver = remember { mutableStateOf(false) }
     val gameResultMessage = remember { mutableStateOf<String?>(null) }
+    var allowMovement by remember { mutableStateOf(false) }
 
     val gameStartTime = remember { SystemClock.elapsedRealtime() }
     var gameStartDelay by remember { mutableStateOf(0L) }
@@ -105,8 +106,16 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
 
             val pendingObstacles = remember { mutableStateListOf<ObstacleSpawnedEvent>() }
 
+            var allowMovement by remember { mutableStateOf(false) }
+
+            var timeOffset: Long = 0
+
             LaunchedEffect(Unit) {
-                println("🛠️ Spielaufbau gestartet für gameId: $gameId")
+                // 0. Serverzeit abfragen & Offset berechnen
+                val serverTime = AllClients.gameClient.getServerTime() // <-- muss System.currentTimeMillis() liefern
+                val localTime = System.currentTimeMillis()
+                timeOffset = localTime - serverTime
+
 
                 // 1. WebSocket verbinden
                 WebSocketManager.connect(
@@ -136,7 +145,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                         }
                     },
                     onConnected = {
-                        println("✅ WebSocket ist jetzt verbunden & bereit")
+                        println("WebSocket ist jetzt verbunden & bereit")
                         isWebSocketReady = true
                     }
                 )
@@ -152,7 +161,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 val (success, startAtServer, _) = AllClients.gameClient.startGameByGameId(gameId, username)
 
                 if (!success || startAtServer <= 0L) {
-                    println("❌ Spielstart fehlgeschlagen – kein gültiger startAt")
+                    println("Spielstart fehlgeschlagen – kein gültiger startAt")
                     return@LaunchedEffect
                 }
 
@@ -165,47 +174,33 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 carState.value = CarState(carX = centerX, carY = lowerY, angle = 0f)
                 isCarInitialized = true
 
-                // 5. Warte auf Hindernisse oder Timeout
-                val obstacleWaitStart = System.currentTimeMillis()
+                // 5. Warte auf Hindernisse oder Timeout (auch mit offset-sicherem Start)
+                val obstacleWaitStart = System.currentTimeMillis() - timeOffset
                 val obstacleWaitTimeout = 2000L
                 val minObstacles = 3
 
                 println("⏳ Warte auf $minObstacles Hindernisse oder $obstacleWaitTimeout ms...")
-                while (System.currentTimeMillis() - obstacleWaitStart < obstacleWaitTimeout) {
+                while ((System.currentTimeMillis() - timeOffset) - obstacleWaitStart < obstacleWaitTimeout) {
                     if (pendingObstacles.size >= minObstacles) {
-                        println("✅ Genug Hindernisse empfangen: ${pendingObstacles.size}")
+                        println(" Genug Hindernisse empfangen: ${pendingObstacles.size}")
                         break
                     }
                     delay(50)
                 }
 
                 if (pendingObstacles.isEmpty()) {
-                    println("⚠️ Kein einziges Hindernis empfangen – Spiel startet trotzdem")
+                    println(" Kein einziges Hindernis empfangen – Spiel startet trotzdem")
                 }
 
-                // 6. Countdown warten
-                val countdownStartMillis = startAtServer - 3000L
-                while (System.currentTimeMillis() < countdownStartMillis) {
+                // 6. Warten bis Spielstart mit offset-korrigierter Zeit
+                while (System.currentTimeMillis() - timeOffset < startAtServer) {
                     delay(1)
                 }
 
-                // 7. Countdown anzeigen
-                for (i in 3 downTo 1) {
-                    countdown = i
-                    delay(1000L)
-                }
-                countdown = null
-
-                // 8. Warte auf offiziellen Startzeitpunkt
-                while (System.currentTimeMillis() < startAtServer) {
-                    delay(1)
-                }
-
-                // 9. Spielstart lokal registrieren
+                // 7. Spielstart registrieren
                 gameStartElapsed = SystemClock.elapsedRealtime()
-                val localStartTime = System.currentTimeMillis()
-                val diff = localStartTime - startAtServer
-                println("🚗 Spieler $username startet lokal um $localStartTime (startAt=$startAtServer, Δ=${diff}ms)")
+                val localSyncedStart = System.currentTimeMillis() - timeOffset
+                val diff = localSyncedStart - startAtServer
 
                 AllClients.logClient.logEventWithFixedDelay(
                     gameId = gameId,
@@ -215,10 +210,13 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                     delayMs = diff.coerceAtLeast(0)
                 )
 
-                // 10. Spiel starten
+                // 8. Spiel starten
                 isStarted = true
+                delay(200)
+                allowMovement = true
                 gameStartDelay = SystemClock.elapsedRealtime() - gameStartTime
             }
+
 
 
 
@@ -240,7 +238,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                     val nextObstacle = pendingObstacles.minByOrNull { it.timestamp }
 
                     if (nextObstacle != null) {
-                        val waitTime = nextObstacle.timestamp - System.currentTimeMillis()
+                        val waitTime = nextObstacle.timestamp - (System.currentTimeMillis() - timeOffset)
                         if (waitTime > 0) delay(waitTime)
 
                         // Nur anzeigen + loggen, wenn die ID noch nicht verarbeitet wurde

@@ -130,4 +130,15 @@ class GameClient : BaseClient(overridePort = 9093) {
         }
     }
 
+    fun getServerTime(): Long {
+        return try {
+            val response = stub.getServerTime(com.google.protobuf.Empty.getDefaultInstance())
+            response.currentTimeMillis
+        } catch (e: Exception) {
+            Log.e("GameClient", "getServerTime failed", e)
+            System.currentTimeMillis() // fallback
+        }
+    }
+
+
 }

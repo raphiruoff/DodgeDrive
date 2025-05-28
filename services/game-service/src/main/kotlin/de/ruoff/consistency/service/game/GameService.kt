@@ -222,15 +222,16 @@ class GameService(
 //                connection.keyCommands().del("game:${game.gameId}".toByteArray())
 //            }
 
-            val countdownDelay = 3000L
+           val countdownDelay = 3000L
             val spawnDelay = 1200L
-            val totalDelay = countdownDelay + spawnDelay
+            val bufferTime = 2000L
+
+            val totalDelay = countdownDelay + spawnDelay + bufferTime
 
             val startAt = System.currentTimeMillis() + totalDelay
             game.startAt = startAt
             gameRepository.save(game)
 
-            Thread.sleep(1200L)
 
             game.obstacles.forEach { obstacle ->
                 val spawnTime = startAt + obstacle.timestamp
@@ -252,5 +253,9 @@ class GameService(
             redisLockService.releaseLock(lockKey)
         }
     }
+    fun getServerTime(): Long {
+        return System.currentTimeMillis()
+    }
+
 
 }

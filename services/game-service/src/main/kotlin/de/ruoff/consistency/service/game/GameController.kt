@@ -241,6 +241,17 @@ class GameController(
     }
 
 
+    override fun getServerTime(
+        request: com.google.protobuf.Empty,
+        responseObserver: StreamObserver<TimeResponse>
+    ) {
+        val response = TimeResponse.newBuilder()
+            .setCurrentTimeMillis(System.currentTimeMillis())
+            .build()
+
+        responseObserver.onNext(response)
+        responseObserver.onCompleted()
+    }
 
 
 
