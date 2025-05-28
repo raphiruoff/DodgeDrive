@@ -159,13 +159,6 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 val grpcRtt = System.currentTimeMillis() - grpcSentAt
                 AllClients.gameClient.measureLatency(gameId, username)?.let { latency ->
                     println("📏 Direkte gRPC-Latenz: $latency ms")
-                    AllClients.logClient.logEventWithFixedDelay(
-                        gameId = gameId,
-                        username = username,
-                        eventType = "latency_grpc_direct",
-                        scheduledAt = System.currentTimeMillis() - latency,
-                        delayMs = latency
-                    )
                 }
 
                 // 4. Auto initialisieren
@@ -232,15 +225,8 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
             LaunchedEffect(Unit) {
                 withContext(Dispatchers.IO) {
                     AllClients.gameClient.measureLatency(gameId, username)?.let { latency ->
-                        println("Direkte gRPC-Latenz (Client → Server): $latency ms")
 
-                        AllClients.logClient.logEventWithFixedDelay(
-                            gameId = gameId,
-                            username = username,
-                            eventType = "latency_grpc_direct",
-                            scheduledAt = System.currentTimeMillis() - latency,
-                            delayMs = latency
-                        )
+
                     }
                 }
             }
