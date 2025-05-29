@@ -64,8 +64,24 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
     val loggedObstacleIds = remember { mutableSetOf<String>() }
     var isWebSocketReady by remember { mutableStateOf(false) }
     var isCarInitialized by remember { mutableStateOf(false) }
+    val pendingObstacles = remember { mutableStateListOf<ObstacleSpawnedEvent>() }
 
     val loggedKeys = remember { mutableSetOf<String>() }
+    fun resetGameState() {
+        obstacles.clear()
+        pendingObstacles.clear()
+        loggedKeys.clear()
+        scorableObstacles.clear()
+        opponentScore.value = 0
+        playerScore = 0
+        isGameOver.value = false
+        isOpponentGameOver.value = false
+        gameResultMessage.value = null
+        isStarted = false
+        isWebSocketReady = false
+        isCarInitialized = false
+        WebSocketManager.disconnect()
+    }
 
     fun logEventOnceLocal(
         eventType: String,
@@ -104,7 +120,6 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
             val lowerY = screenHeight * 3f / 4f
 
 
-            val pendingObstacles = remember { mutableStateListOf<ObstacleSpawnedEvent>() }
 
             var allowMovement by remember { mutableStateOf(false) }
 
@@ -218,10 +233,23 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                     println(" Kein einziges Hindernis empfangen – Spiel startet trotzdem")
                 }
 
-                // 6. Warten bis Spielstart mit offset-korrigierter Zeit
+                // 6. Countdown starten
+                val timeUntilStart = startAtServer - (System.currentTimeMillis() - timeOffset)
+                val startDelay = timeUntilStart - 3000L
+
+                if (startDelay > 0) delay(startDelay)
+
+                for (i in 3 downTo 1) {
+                    countdown = i
+                    delay(1000)
+                }
+                countdown = null
+
+// 7. Warten bis Spielstart
                 while (System.currentTimeMillis() - timeOffset < startAtServer) {
                     delay(1)
                 }
+
 
                 // 7. Spielstart registrieren
                 gameStartElapsed = SystemClock.elapsedRealtime()
@@ -482,10 +510,12 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(onClick = {
+                        resetGameState()
                         navController.navigate(Routes.MAIN) {
                             popUpTo(Routes.RACEGAME) { inclusive = true }
                         }
-                    }) { Text("🏠 Zurück zum Hauptmenü") }
+                    })
+                    { Text("🏠 Zurück zum Hauptmenü") }
                 }
             }
         }

@@ -227,6 +227,7 @@ class GameService(
             val startAt = System.currentTimeMillis() + totalDelay
             game.startAt = startAt
             gameRepository.save(game)
+            Thread.sleep(3000)
 
 
             game.obstacles.forEach { obstacle ->
