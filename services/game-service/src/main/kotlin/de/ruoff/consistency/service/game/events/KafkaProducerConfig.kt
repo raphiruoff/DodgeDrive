@@ -53,5 +53,14 @@ class KafkaProducerConfig {
     fun scoreKafkaTemplate(): KafkaTemplate<String, ScoreEvent> =
         KafkaTemplate(scoreProducerFactory())
 
+    @Bean
+    fun gameFinishedProducerFactory(): ProducerFactory<String, GameFinishedEvent> =
+        DefaultKafkaProducerFactory(producerConfigs<GameFinishedEvent>())
+
+    @Bean
+    fun gameFinishedKafkaTemplate(): KafkaTemplate<String, GameFinishedEvent> =
+        KafkaTemplate(gameFinishedProducerFactory())
+
+
 }
 

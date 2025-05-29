@@ -142,18 +142,29 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                                 delayMs = delay.coerceAtLeast(0),
                                 score = event.newScore
                             )
-
-
-
                         } else {
                             opponentScore.value = event.newScore
                         }
+                    },
+                    onGameFinished = { event ->
+                        isOpponentGameOver.value = event.winner == username || event.winner == "draw"
+
+                        gameResultMessage.value = when {
+                            event.winner == username -> "🏆 Du hast gewonnen!"
+                            event.winner == "draw" -> "🤝 Unentschieden"
+                            else -> "😢 Du hast verloren"
+                        }
+                        AllClients.gameClient.finishGame(gameId, username)
+
+                        isGameOver.value = true
+                        WebSocketManager.disconnect()
                     },
                     onConnected = {
                         println("WebSocket ist jetzt verbunden & bereit")
                         isWebSocketReady = true
                     }
                 )
+
 
                 // 2. Warte auf WebSocket-Readiness
                 while (!isWebSocketReady) {
@@ -250,8 +261,8 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
 
             val seenObstacleIds = remember { mutableSetOf<String>() }
 
-            LaunchedEffect(Unit) {
-                while (true) {
+            LaunchedEffect(isGameOver.value) {
+                while (!isGameOver.value) {
                     val nextObstacle = pendingObstacles.minByOrNull { it.timestamp }
 
                     if (nextObstacle != null) {
@@ -279,7 +290,6 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                                 delayMs = delayMs.coerceAtLeast(0)
                             )
 
-
                             logEventOnceLocal(
                                 eventType = "obstacle_spawned",
                                 scheduledAt = nextObstacle.timestamp
@@ -295,7 +305,8 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
 
 
 
-            val scoreQueue = remember { mutableStateListOf<Obstacle>() } // GANZ OBEN
+
+            val scoreQueue = remember { mutableStateListOf<Obstacle>() }
 
             if (isStarted) {
 
@@ -319,6 +330,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
 
                             if (checkCollision(carState.value, obstacle)) {
                                 isGameOver.value = true
+
                             }
 
                             val scoringThreshold = screenHeight - 150f
@@ -332,6 +344,12 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                     }
 
                     obstacles.removeAll(toRemove)
+                }
+                LaunchedEffect(isGameOver.value) {
+                    if (!isGameOver.value) return@LaunchedEffect
+
+                    println("💀 Spieler $username ist gestorben – sende finishGame()")
+                    AllClients.gameClient.finishGame(gameId, username)
                 }
 
 
@@ -412,6 +430,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 color = if (isOpponentGameOver.value) Color.Red else Color.Yellow
             )
 
+
             if (isStarted && !isGameOver.value) {
                 Row(
                     modifier = Modifier
@@ -443,30 +462,6 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
             if (isGameOver.value) {
                 obstacles.filter { !it.scored }.forEach {
                     println("⚠️ Nicht gescored: ${it.id}, y=${it.y}")
-                }
-                LaunchedEffect(true) {
-                    AllClients.gameClient.finishGame(gameId, username)
-                    AllClients.logClient.exportLogs(gameId)
-
-                    // Warte auf finale Server-Auswertung
-                    while (true) {
-                        val game = AllClients.gameClient.getGame(gameId)
-                        if (game?.status == "FINISHED" && !game.winner.isNullOrEmpty()) {
-                            val winner = game.winner
-                            gameResultMessage.value = when {
-                                winner == username -> "🏆 Du hast gewonnen!"
-                                winner == "draw" -> "🤝 Unentschieden"
-                                else -> {
-                                    isOpponentGameOver.value = true
-                                    "😢 Du hast verloren"
-                                }
-                            }
-                            break
-                        }
-                        delay(250)
-                    }
-                    WebSocketManager.disconnect()
-
                 }
 
 

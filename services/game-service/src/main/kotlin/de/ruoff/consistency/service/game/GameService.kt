@@ -1,5 +1,6 @@
 package de.ruoff.consistency.service.game
 
+import de.ruoff.consistency.events.GameFinishedEvent
 import de.ruoff.consistency.events.GameLogEvent
 import de.ruoff.consistency.events.ObstacleSpawnedEvent
 import de.ruoff.consistency.events.ScoreEvent
@@ -77,7 +78,7 @@ class GameService(
 
 
     private fun generateObstacles(gameId: String): List<ObstacleModel> {
-        val obstacleCount = 30
+        val obstacleCount = 10
         val intervalMs = 3500L
         val lanes = listOf(0.33f, 0.5f, 0.66f)
         val seed = gameId.hashCode().toLong()
@@ -185,7 +186,9 @@ class GameService(
 //            Thread.sleep(5000)
 //            gameRepository.redisTemplate.execute { it.flushAll() }
 //            Thread.sleep(500)
-
+            gameEventProducer.sendGameFinished(
+                GameFinishedEvent(gameId, winner)
+            )
 
         }
 

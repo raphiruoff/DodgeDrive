@@ -1,6 +1,7 @@
 package com.example.race.data.network
 
 import com.google.gson.Gson
+import de.ruoff.consistency.events.GameFinishedEvent
 import de.ruoff.consistency.events.ObstacleSpawnedEvent
 import de.ruoff.consistency.events.ScoreUpdateEvent
 import io.reactivex.disposables.Disposable
@@ -19,90 +20,77 @@ object WebSocketManager {
     private var obstacleDisposable: Disposable? = null
     private var globalOnScoreUpdate: ((ScoreUpdateEvent) -> Unit)? = null
     private var scoreDisposable: Disposable? = null
+    private var gameFinishedDisposable: Disposable? = null
+    private var globalOnGameFinished: ((GameFinishedEvent) -> Unit)? = null
 
     private var globalOnObstacle: ((ObstacleSpawnedEvent) -> Unit)? = null
 
     fun connect(
         gameId: String,
-        onObstacle: (ObstacleSpawnedEvent) -> Unit = { println("⚠️ Kein Obstacle-Callback gesetzt: $it") },
+        onObstacle: (ObstacleSpawnedEvent) -> Unit = {},
         onScoreUpdate: (ScoreUpdateEvent) -> Unit = {},
+        onGameFinished: (GameFinishedEvent) -> Unit = {},
         onConnected: () -> Unit = {}
     ) {
-        println("🛰️ connect() aufgerufen mit gameId=$gameId um ${System.currentTimeMillis()}")
         disconnect()
 
-        println("🌐 WS Init: $SOCKET_URL")
         stompClient = Stomp.over(Stomp.ConnectionProvider.OKHTTP, SOCKET_URL)
         stompClient.withClientHeartbeat(10000).withServerHeartbeat(10000)
+
         globalOnObstacle = onObstacle
         globalOnScoreUpdate = onScoreUpdate
+        globalOnGameFinished = onGameFinished
 
         lifecycleDisposable = stompClient.lifecycle().subscribe { event ->
-            println("💡 WS Lifecycle: $event")
             when (event.type) {
                 LifecycleEvent.Type.OPENED -> {
-                    println(" WS Verbunden – Subscriptions starten für gameId=$gameId")
-
-                    testDisposable = stompClient.topic("/topic/test").subscribe(
-                        { frame -> println("✅ WS Test empfangen: ${frame.payload}") },
-                        { error -> println("❌ WS Test Fehler: ${error.message}") }
-                    )
-
-                    echoDisposable = stompClient.topic("/topic/echo").subscribe(
-                        { frame -> println("✅ WS Echo empfangen: ${frame.payload}") },
-                        { error -> println("❌ WS Echo Fehler: ${error.message}") }
-                    )
+                    testDisposable = stompClient.topic("/topic/test").subscribe({}, {})
+                    echoDisposable = stompClient.topic("/topic/echo").subscribe({}, {})
 
                     obstacleDisposable = stompClient.topic("/topic/obstacles/$gameId").subscribe(
                         { frame ->
-                            println(" WS FrameRaw-Obstacle-JSON: ${frame.payload}")
                             try {
                                 val obstacle = Gson().fromJson(frame.payload, ObstacleSpawnedEvent::class.java)
-                                println(" WS Obstacle geparst: $obstacle")
                                 globalOnObstacle?.invoke(obstacle)
-                            } catch (e: Exception) {
-                                println("❌ Obstacle-Parsing-Fehler bei Payload: ${frame.payload}")
-                                e.printStackTrace()
-                            }
-                        },
-                        { error ->
-                            println(" WS Fehler bei Obstacle-Subscription: ${error.message}")
-                        }
+                            } catch (_: Exception) {}
+                        }, {}
                     )
-                    println("📡 WS Subscribed to: /topic/obstacles/$gameId")
 
                     scoreDisposable = stompClient.topic("/topic/scores/$gameId").subscribe(
                         { frame ->
-                            println("🟢 WS ScoreUpdate empfangen: ${frame.payload}")
                             try {
                                 val scoreUpdate = Gson().fromJson(frame.payload, ScoreUpdateEvent::class.java)
-                                println("✅ WS ScoreUpdate geparst: $scoreUpdate")
                                 globalOnScoreUpdate?.invoke(scoreUpdate)
-                            } catch (e: Exception) {
-                                println("ScoreUpdate-Parsing-Fehler bei Payload: ${frame.payload}")
-                                e.printStackTrace()
-                            }
-                        },
-                        { error ->
-                            println(" WS Fehler bei ScoreUpdate-Subscription: ${error.message}")
-                        }
+                            } catch (_: Exception) {}
+                        }, {}
                     )
-                    println(" WS Subscribed to: /topic/scores/$gameId")
+
+                    gameFinishedDisposable = stompClient.topic("/topic/game-finished/$gameId").subscribe(
+                        { frame ->
+                            try {
+                                val event = Gson().fromJson(frame.payload, GameFinishedEvent::class.java)
+                                globalOnGameFinished?.invoke(event)
+                            } catch (_: Exception) {}
+                        }, {}
+                    )
 
                     sendEchoMessage("Hallo Server 👋")
-
                     onConnected()
                 }
 
-                LifecycleEvent.Type.ERROR -> println("❌ WS Lifecycle-Fehler: ${event.exception?.message}")
-                LifecycleEvent.Type.CLOSED -> println("🔌 WS Verbindung geschlossen.")
-                else -> println(" WS Event: ${event.type}")
+                LifecycleEvent.Type.ERROR,
+                LifecycleEvent.Type.CLOSED,
+                LifecycleEvent.Type.FAILED_SERVER_HEARTBEAT,
+                 -> {
+                }
+
+                else -> {}
             }
         }
 
-        println("🚀 WS Verbindung wird aufgebaut...")
         stompClient.connect()
     }
+
 
 
 
@@ -124,6 +112,10 @@ object WebSocketManager {
 
             scoreDisposable?.dispose()
             scoreDisposable = null
+
+            gameFinishedDisposable?.dispose()
+            gameFinishedDisposable = null
+
 
             stompClient.disconnect()
         }

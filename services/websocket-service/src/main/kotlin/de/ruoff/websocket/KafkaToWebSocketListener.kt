@@ -5,6 +5,7 @@ import de.ruoff.consistency.events.ScoreUpdateEvent
 import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Component
+import de.ruoff.consistency.events.GameFinishedEvent
 
 @Component
 class KafkaToWebSocketListener(
@@ -34,4 +35,17 @@ class KafkaToWebSocketListener(
 
         println("ScoreUpdateEvent an WebSocket gesendet: $topic")
     }
+
+    @KafkaListener(
+        topics = ["game-finished-topic"],
+    )
+    fun handleGameFinished(event: GameFinishedEvent) {
+        println("✅ Kafka: GameFinishedEvent für Spiel ${event.gameId} empfangen – Gewinner: ${event.winner}")
+
+        val topic = "/topic/game-finished/${event.gameId}"
+        messagingTemplate.convertAndSend(topic, event)
+
+        println("🏁 Spielergebnis an WebSocket gesendet: $topic")
+    }
+
 }

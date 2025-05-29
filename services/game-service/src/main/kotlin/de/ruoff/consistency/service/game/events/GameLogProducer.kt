@@ -12,4 +12,5 @@ class GameLogProducer(
         println("📤 Logging Game Event: $event")
         gameLogKafkaTemplate.send("game-log-topic", event.username, event)
     }
+
 }
