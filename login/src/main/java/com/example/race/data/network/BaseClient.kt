@@ -5,7 +5,7 @@ import io.grpc.okhttp.OkHttpChannelBuilder
 import java.util.concurrent.TimeUnit
 
 open class BaseClient(
-    host: String = "10.0.2.2",
+    host: String = "16.170.220.163",
     private val overridePort: Int? = null
 ) {
     open val defaultPort: Int = 9090

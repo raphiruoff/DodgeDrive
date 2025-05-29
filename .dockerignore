@@ -1,0 +1,8 @@
+build/
+.gradle/
+export/
+.idea/
+*.iml
+*.apk
+*.jar
+*.log
