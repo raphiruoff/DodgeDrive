@@ -8,7 +8,8 @@ import java.util.Locale
 
 @Service
 class LogService(
-    private val repository: LogRepository
+    private val repository: LogRepository,
+    private val logMetricsService: LogMetricsService
 ) {
 
     fun saveLog(
@@ -24,6 +25,7 @@ class LogService(
 
         if (repository.existsById(eventId)) {
             println("Log bereits vorhanden → $eventId")
+            logMetricsService.countDuplicateEvent(eventType)
             return
         }
 
@@ -39,7 +41,11 @@ class LogService(
             opponentUsername = opponentUsername
         )
         repository.save(log)
+
+        logMetricsService.countLogEvent(eventType, username)
+        logMetricsService.recordLatency(eventType, delayMs)
     }
+
 
 
     fun exportLogsToCsv(gameId: String) {

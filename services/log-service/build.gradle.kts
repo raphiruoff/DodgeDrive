@@ -24,6 +24,10 @@ repositories {
 extra["springGrpcVersion"] = "0.3.0"
 
 dependencies {
+    implementation("io.micrometer:micrometer-registry-prometheus")
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation("org.springframework.boot:spring-boot-starter-web")
+
     // Kafka & MongoDB
     implementation("org.springframework.boot:spring-boot-starter-data-mongodb")
     implementation("org.springframework.kafka:spring-kafka")
