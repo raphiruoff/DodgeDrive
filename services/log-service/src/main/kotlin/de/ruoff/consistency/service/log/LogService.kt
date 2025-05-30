@@ -49,7 +49,7 @@ class LogService(
         val timestamp = Instant.now().atZone(java.time.ZoneId.systemDefault())
         val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss", Locale.GERMANY)
         val formattedTime = formatter.format(timestamp)
-        val file = File(logsDir, "log_export_${gameId}_$formattedTime.csv")
+        val file = File(logsDir, "log_game_$formattedTime.csv")
         val relevantEvents = setOf(
             "game_start",
             "obstacle_spawned_latency",

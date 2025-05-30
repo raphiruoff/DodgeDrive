@@ -9,11 +9,11 @@ echo " Erstelle sauberes deploy-Verzeichnis lokal..."
 rm -rf deploy
 mkdir -p deploy
 
-# docker-compose.yml und Init-Skripte kopieren
+# docker-compose.yml und Init Skripte kopieren
 cp docker-compose.yml deploy/
 cp -r postgres-init deploy/
 
-# Services iterieren und build + Dockerfile kopieren
+# Services und build + Dockerfile kopieren
 SERVICES=(
   "session-service"
   "game-service"
@@ -53,8 +53,8 @@ ssh -i "$EC2_KEY_PATH" $EC2_USER@$EC2_HOST << EOF
   echo " Entpacke neues deploy.tar.gz..."
   tar -xzf deploy.tar.gz
 
-  echo " Bereit! Starte nun manuell mit:"
-  echo "    cd ~/deploy && docker-compose up -d --build"
+  echo " Bereit!"
+
 EOF
 
 echo " Upload & Cleanup abgeschlossen."

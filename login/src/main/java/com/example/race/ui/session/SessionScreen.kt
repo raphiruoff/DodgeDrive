@@ -133,10 +133,6 @@ fun SessionScreen(
                         }
 
                         if (game != null) {
-                            coroutineScope.launch(Dispatchers.IO) {
-                                AllClients.logClient.exportLogs(safeSessionId)
-                            }
-
                             onNavigateToRaceGame(game.gameId, safeUsername)
                             break
                         }

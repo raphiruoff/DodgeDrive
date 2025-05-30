@@ -136,11 +136,11 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 WebSocketManager.connect(
                     gameId = gameId,
                     onObstacle = { obstacle ->
-                        println("📥 Obstacle empfangen: $obstacle")
+                        println("Obstacle empfangen: $obstacle")
                         pendingObstacles.add(obstacle)
                     },
                     onScoreUpdate = { event ->
-                        println("📨 ScoreUpdate erhalten: ${event.username}, Score: ${event.newScore}")
+                        println("ScoreUpdate erhalten: ${event.username}, Score: ${event.newScore}")
 
                         if (event.username.equals(username, ignoreCase = true)) {
                             playerScore = event.newScore
@@ -208,7 +208,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
 
                 val grpcRtt = System.currentTimeMillis() - grpcSentAt
                 AllClients.gameClient.measureLatency(gameId, username)?.let { latency ->
-                    println("📏 Direkte gRPC-Latenz: $latency ms")
+                    println(" Direkte gRPC-Latenz: $latency ms")
                 }
 
                 // 4. Auto initialisieren
@@ -257,14 +257,6 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 val diff = localSyncedStart - startAtServer
                 val now = System.currentTimeMillis()
                 val diff_log = now - startAtServer
-//                AllClients.logClient.logEventWithFixedDelay(
-//                    gameId = gameId,
-//                    username = username,
-//                    eventType = "game_start",
-//                    scheduledAt = startAtServer,
-//                    originTimestamp = now,
-//                    delayMs = diff_log.coerceAtLeast(0)
-//                )
 
                 // 8. Spiel starten
                 isStarted = true
@@ -376,9 +368,13 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
                 LaunchedEffect(isGameOver.value) {
                     if (!isGameOver.value) return@LaunchedEffect
 
-                    println("💀 Spieler $username ist gestorben – sende finishGame()")
+                    println(" Spieler $username ist gestorben – sende finishGame()")
                     AllClients.gameClient.finishGame(gameId, username)
+
+                    println(" Exportiere Logs für $gameId")
+                    AllClients.logClient.exportLogs(gameId)
                 }
+
 
 
                 LaunchedEffect(Unit) {

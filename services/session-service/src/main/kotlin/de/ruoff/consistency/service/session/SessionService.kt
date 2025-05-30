@@ -135,17 +135,17 @@ class SessionService(
             // Prüfe, ob bereits ein gültiges Spiel existiert (inkl. Hindernisse)
             val existingGame = gameClient.getGameBySession(sessionId)
             if (existingGame != null) {
-                println("🔍 Vorhandenes Spiel gefunden: gameId=${existingGame.gameId}, startAt=${existingGame.startAt}, obstacles=${existingGame.obstaclesList.size}")
+                println(" Vorhandenes Spiel gefunden: gameId=${existingGame.gameId}, startAt=${existingGame.startAt}, obstacles=${existingGame.obstaclesList.size}")
 
                 if (existingGame.startAt > 0L && existingGame.obstaclesList.isNotEmpty()) {
-                    println("✅ Wiederverwendbares Spiel gefunden")
+                    println(" Wiederverwendbares Spiel gefunden")
                     return Session.StartGameResponse.newBuilder()
                         .setSuccess(true)
                         .setStartAt(existingGame.startAt)
                         .setGameId(existingGame.gameId)
                         .build()
                 } else {
-                    println("⚠️ Ungültiges Spiel – wird ignoriert (fehlende Hindernisse oder startAt=0)")
+                    println("⚠ Ungültiges Spiel – wird ignoriert (fehlende Hindernisse oder startAt=0)")
                 }
             }
 
@@ -165,13 +165,13 @@ class SessionService(
                     return@repeat
                 }
 
-                println("❌ Keine Hindernisse – versuche erneut...")
+                println("Keine Hindernisse – versuche erneut...")
                 Thread.sleep(200)
             }
 
             val gameId = successfulGameId
             if (gameId == null) {
-                println("❌ Spiel konnte nicht korrekt erstellt werden (keine Hindernisse)")
+                println(" Spiel konnte nicht korrekt erstellt werden (keine Hindernisse)")
                 return Session.StartGameResponse.newBuilder().setSuccess(false).build()
             }
 
