@@ -2,8 +2,8 @@
 
 # Konfiguration
 EC2_USER="ubuntu"
-EC2_HOST="16.170.220.163"
-EC2_KEY_PATH="/Users/raphael.ruoff/Desktop/ec2 instanz Dodge Drive/ec2-key-raphi.pem"
+EC2_HOST="13.60.210.162"
+EC2_KEY_PATH="/Users/raphael.ruoff/Desktop/ec2/ec2-key-raphi.pem"
 
 echo " Erstelle sauberes deploy-Verzeichnis lokal..."
 rm -rf deploy
@@ -40,7 +40,7 @@ tar -czf deploy.tar.gz deploy
 echo " Lade deploy.tar.gz auf EC2 hoch..."
 scp -i "$EC2_KEY_PATH" deploy.tar.gz $EC2_USER@$EC2_HOST:/home/ubuntu/
 
-# Cleanup und Vorbereitungen remote auf EC2
+# Cleanup und Vorbereitungen  auf EC2
 echo " Bereinige alte Container und Verzeichnisse auf EC2..."
 
 ssh -i "$EC2_KEY_PATH" $EC2_USER@$EC2_HOST << EOF
