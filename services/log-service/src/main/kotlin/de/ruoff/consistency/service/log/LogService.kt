@@ -1,5 +1,7 @@
 package de.ruoff.consistency.service.log
 
+import jakarta.annotation.PostConstruct
+import org.springframework.retry.support.RetryTemplate
 import org.springframework.stereotype.Service
 import java.io.File
 import java.time.Instant
@@ -9,8 +11,29 @@ import java.util.Locale
 @Service
 class LogService(
     private val repository: LogRepository,
-    private val logMetricsService: LogMetricsService
+    private val logMetricsService: LogMetricsService,
+    private val retryTemplate: RetryTemplate
 ) {
+
+    fun saveLogWithRetry(
+        gameId: String,
+        username: String,
+        eventType: String,
+        delayMs: Long,
+        originTimestamp: Long?,
+        score: Int? = null,
+        opponentUsername: String? = null
+    ) {
+        var attempt = 0
+        retryTemplate.execute<Void, Exception> {
+            attempt++
+            if (attempt > 1) { // Ab dem zweiten Versuch ist es ein Retry
+                logMetricsService.countRetryAttempt(eventType)
+            }
+            saveLog(gameId, username, eventType, delayMs, originTimestamp, score, opponentUsername)
+            null
+        }
+    }
 
     fun saveLog(
         gameId: String,
@@ -46,8 +69,6 @@ class LogService(
         logMetricsService.recordLatency(eventType, delayMs)
     }
 
-
-
     fun exportLogsToCsv(gameId: String) {
         val logsDir = File("/app/export")
         if (!logsDir.exists()) logsDir.mkdirs()
@@ -66,7 +87,6 @@ class LogService(
 
         val logs = repository.findByGameId(gameId)
             .filter { it.eventType in relevantEvents }
-         //   .filter { it.delayMs <= 3000 }
 
         if (logs.isEmpty()) {
             println("Keine Logs für gameId=$gameId gefunden.")
@@ -91,12 +111,53 @@ class LogService(
         }
 
         file.writeText(csv.toString())
-        println("Exportierte  Logdatei ): ${file.absolutePath}")
+        println("Exportierte Logdatei: ${file.absolutePath}")
     }
 
+    @PostConstruct
+    fun runTestsOnStartup() {
+        testDuplicateLogging()
+        testRetryLogging()
+    }
 
+    fun testDuplicateLogging() {
+        val gameId = "test-game-123"
+        val username = "TestUser"
+        val eventType = "latency_grpc_backend"
+        val delayMs = 100L
+        val originTimestamp = System.currentTimeMillis()
 
+        println("Starte mehrfachen Log-Call (5x mit exakt gleichen Daten)")
+        repeat(5) { i ->
+            println("Log-Call Nr. ${i + 1}")
+            saveLog(gameId, username, eventType, delayMs, originTimestamp)
+        }
+    }
 
+    fun testRetryLogging() {
+        val gameId = "retry-test-game"
+        val username = "RetryUser"
+        val eventType = "retry_event"
+        val delayMs = 100L
+        val originTimestamp = System.currentTimeMillis()
 
+        println("Starte Retry-Test (Simuliert Fehler bis zum 3. Versuch)")
+        var attempt = 0
+
+        try {
+            retryTemplate.execute<Void, Exception> {
+                attempt++
+                println("Retry Versuch $attempt")
+                if (attempt < 3) {
+                    throw RuntimeException("Simulierter Fehler zum Testen des Retry-Mechanismus")
+                }
+                saveLogWithRetry(gameId, username, eventType, delayMs, originTimestamp)
+                null
+            }
+            println("Log erfolgreich gespeichert nach $attempt Versuchen")
+        } catch (e: Exception) {
+            println("Retry ist fehlgeschlagen nach $attempt Versuchen: ${e.message}")
+        }
+    }
 
 }

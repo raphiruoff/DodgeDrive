@@ -33,4 +33,8 @@ class LogMetricsService(
     fun countExport(gameId: String) {
         meterRegistry.counter("log_exports_total", "game_id", gameId).increment()
     }
+    fun countRetryAttempt(eventType: String) {
+        meterRegistry.counter("log_retry_attempts_total", "event_type", eventType).increment()
+    }
+
 }
