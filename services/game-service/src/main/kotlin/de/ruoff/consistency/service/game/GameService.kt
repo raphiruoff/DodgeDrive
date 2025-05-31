@@ -10,7 +10,8 @@ import de.ruoff.consistency.service.game.events.GameLogProducer
 import de.ruoff.consistency.service.game.events.ScoreProducer
 import org.springframework.stereotype.Service
 import java.util.*
-import org.springframework.data.redis.connection.RedisConnection
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 @Service
 class GameService(
@@ -78,7 +79,7 @@ class GameService(
 
 
     private fun generateObstacles(gameId: String): List<ObstacleModel> {
-        val obstacleCount = 10
+        val obstacleCount = 100
         val intervalMs = 3500L
         val lanes = listOf(0.33f, 0.5f, 0.66f)
         val seed = gameId.hashCode().toLong()
@@ -212,47 +213,44 @@ class GameService(
                 return true
             }
 
-
-
-//            gameRepository.redisTemplate.execute { connection ->
-//                connection.keyCommands().del("game:${game.gameId}".toByteArray())
-//            }
-
-           val countdownDelay = 3000L
+            val countdownDelay = 3000L
             val spawnDelay = 2000L
             val bufferTime = 2000L
-
             val totalDelay = countdownDelay + spawnDelay + bufferTime
 
             val startAt = System.currentTimeMillis() + totalDelay
             game.startAt = startAt
             gameRepository.save(game)
-            Thread.sleep(3000)
 
-
-            game.obstacles.forEach { obstacle ->
-                val spawnTime = startAt + obstacle.timestamp
-                gameEventProducer.sendObstacleSpawned(
-                    ObstacleSpawnedEvent(
-                        gameId = gameId,
-                        id = obstacle.id,
-                        x = obstacle.x,
-                        timestamp = spawnTime
-                    )
-                )
+            GlobalScope.launch {
+                sendObstaclesDelayed(gameId, startAt)
             }
-
-
-            gameRepository.dumpAllGames()
 
             return true
         } finally {
             redisLockService.releaseLock(lockKey)
         }
     }
+
     fun getServerTime(): Long {
         return System.currentTimeMillis()
     }
 
+    fun sendObstaclesDelayed(gameId: String, startAt: Long) {
+        Thread.sleep(3000)
+
+        val game = gameRepository.findById(gameId) ?: return
+        game.obstacles.forEach { obstacle ->
+            val spawnTime = startAt + obstacle.timestamp
+            gameEventProducer.sendObstacleSpawned(
+                ObstacleSpawnedEvent(
+                    gameId = gameId,
+                    id = obstacle.id,
+                    x = obstacle.x,
+                    timestamp = spawnTime
+                )
+            )
+        }
+    }
 
 }
