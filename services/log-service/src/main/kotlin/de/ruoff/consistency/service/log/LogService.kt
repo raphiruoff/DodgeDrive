@@ -141,23 +141,22 @@ class LogService(
         val delayMs = 100L
         val originTimestamp = System.currentTimeMillis()
 
-        println("Starte Retry-Test (Simuliert Fehler bis zum 3. Versuch)")
-        var attempt = 0
+        println("Starte Retry-Test (3x Versuch mit Fehler, dann Erfolg)")
 
-        try {
-            retryTemplate.execute<Void, Exception> {
-                attempt++
-                println("Retry Versuch $attempt")
-                if (attempt < 3) {
-                    throw RuntimeException("Simulierter Fehler zum Testen des Retry-Mechanismus")
-                }
-                saveLogWithRetry(gameId, username, eventType, delayMs, originTimestamp)
-                null
+        val maxAttempts = 100
+        repeat(maxAttempts) { attempt ->
+            val currentAttempt = attempt + 1
+            println("Retry-Versuch $currentAttempt")
+
+            if (currentAttempt < maxAttempts) {
+                // Simuliere Fehler und zähle Retry-Versuch
+                logMetricsService.countRetryAttempt(eventType)
+                println("→ Fehler simuliert")
+            } else {
+                // Letzter Versuch erfolgreich
+                saveLog(gameId, username, eventType, delayMs, originTimestamp)
+                println("→ Log erfolgreich gespeichert nach $currentAttempt Versuchen")
             }
-            println("Log erfolgreich gespeichert nach $attempt Versuchen")
-        } catch (e: Exception) {
-            println("Retry ist fehlgeschlagen nach $attempt Versuchen: ${e.message}")
         }
     }
-
 }
