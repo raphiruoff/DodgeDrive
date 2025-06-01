@@ -41,8 +41,9 @@ fun checkCollision(car: CarState, obstacle: Obstacle): Boolean {
     val carTop = car.carY
     val carBottom = car.carY + carHeight
 
-    val obstacleLeft = obstacle.x - obstacleWidth / 2f
+    val obstacleLeft = obstacle.x - obstacleWidth / 2f - 50f
     val obstacleRight = obstacle.x + obstacleWidth / 2f
+
     val obstacleTop = obstacle.y
     val obstacleBottom = obstacle.y + obstacleHeight
 
@@ -51,6 +52,7 @@ fun checkCollision(car: CarState, obstacle: Obstacle): Boolean {
             carBottom > obstacleTop &&
             carTop < obstacleBottom
 }
+
 
 @Composable
 fun RaceGameScreen(navController: NavHostController, gameId: String, username: String) {
