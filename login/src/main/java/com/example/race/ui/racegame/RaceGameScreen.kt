@@ -33,10 +33,23 @@ import kotlin.math.roundToInt
 fun checkCollision(car: CarState, obstacle: Obstacle): Boolean {
     val carWidth = 48f
     val carHeight = 96f
-    return car.carX < obstacle.x + obstacle.width &&
-            car.carX + carWidth > obstacle.x &&
-            car.carY < obstacle.y + obstacle.height &&
-            car.carY + carHeight > obstacle.y
+    val obstacleWidth = 48f
+    val obstacleHeight = 48f
+
+    val carLeft = car.carX
+    val carRight = car.carX + carWidth
+    val carTop = car.carY
+    val carBottom = car.carY + carHeight
+
+    val obstacleLeft = obstacle.x - obstacleWidth / 2f
+    val obstacleRight = obstacle.x + obstacleWidth / 2f
+    val obstacleTop = obstacle.y
+    val obstacleBottom = obstacle.y + obstacleHeight
+
+    return carRight > obstacleLeft &&
+            carLeft < obstacleRight &&
+            carBottom > obstacleTop &&
+            carTop < obstacleBottom
 }
 
 @Composable
@@ -445,7 +458,7 @@ fun RaceGameScreen(navController: NavHostController, gameId: String, username: S
             )
 
             Text(
-                "Gegner: ${opponentScore.value}" + if (isOpponentGameOver.value) " ❌" else "",
+                "Gegner: ${opponentScore.value}",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier

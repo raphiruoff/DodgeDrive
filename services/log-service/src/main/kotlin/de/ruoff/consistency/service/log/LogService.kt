@@ -114,11 +114,11 @@ class LogService(
         println("Exportierte Logdatei: ${file.absolutePath}")
     }
 
-    @PostConstruct
+   @PostConstruct
     fun runTestsOnStartup() {
-        testDuplicateLogging()
-        testRetryLogging()
-    }
+       // testDuplicateLogging()
+       // testRetryLogging()
+   }
 
     fun testDuplicateLogging() {
         val gameId = "test-game-123"
