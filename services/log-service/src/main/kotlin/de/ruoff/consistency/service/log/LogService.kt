@@ -11,7 +11,7 @@ import java.util.Locale
 @Service
 class LogService(
     private val repository: LogRepository,
-    private val logMetricsService: LogMetricsService,
+//    private val logMetricsService: LogMetricsService,
     private val retryTemplate: RetryTemplate
 ) {
 
@@ -27,9 +27,9 @@ class LogService(
         var attempt = 0
         retryTemplate.execute<Void, Exception> {
             attempt++
-            if (attempt > 1) { // Ab dem zweiten Versuch ist es ein Retry
-                logMetricsService.countRetryAttempt(eventType)
-            }
+//            if (attempt > 1) { // Ab dem zweiten Versuch ist es ein Retry
+//                logMetricsService.countRetryAttempt(eventType)
+//            }
             saveLog(gameId, username, eventType, delayMs, originTimestamp, score, opponentUsername)
             null
         }
@@ -48,7 +48,7 @@ class LogService(
 
         if (repository.existsById(eventId)) {
             println("Log bereits vorhanden → $eventId")
-            logMetricsService.countDuplicateEvent(eventType)
+//            logMetricsService.countDuplicateEvent(eventType)
             return
         }
 
@@ -64,9 +64,9 @@ class LogService(
             opponentUsername = opponentUsername
         )
         repository.save(log)
-
-        logMetricsService.countLogEvent(eventType, username)
-        logMetricsService.recordLatency(eventType, delayMs)
+//
+//        logMetricsService.countLogEvent(eventType, username)
+//        logMetricsService.recordLatency(eventType, delayMs)
     }
 
     fun exportLogsToCsv(gameId: String) {
@@ -150,7 +150,7 @@ class LogService(
 
             if (currentAttempt < maxAttempts) {
                 // Simuliere Fehler und zähle Retry-Versuch
-                logMetricsService.countRetryAttempt(eventType)
+//                logMetricsService.countRetryAttempt(eventType)
                 println("→ Fehler simuliert")
             } else {
                 // Letzter Versuch erfolgreich

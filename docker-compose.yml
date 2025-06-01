@@ -157,31 +157,32 @@ services:
     environment:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
 
-  prometheus:
-    image: prom/prometheus
-    container_name: prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-    - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-    depends_on:
-      - websocket-service
+# prometheus:
+#   image: prom/prometheus
+#   container_name: prometheus
+#   ports:
+#     - "9090:9090"
+#   volumes:
+#     - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+#   depends_on:
+#     - websocket-service
 
-  grafana:
-    image: grafana/grafana
-    container_name: grafana
-    ports:
-      - "3000:3000"
-    depends_on:
-      - prometheus
-    volumes:
-      - grafana_data:/var/lib/grafana
+# grafana:
+#   image: grafana/grafana
+#   container_name: grafana
+#   ports:
+#     - "3000:3000"
+#   depends_on:
+#     - prometheus
+#   volumes:
+#     - grafana_data:/var/lib/grafana
+
 
 volumes:
   postgres_data: {}
   mongo_data: { }
   redis_data: { }
-  grafana_data:
+ # grafana_data:
 
 
 
