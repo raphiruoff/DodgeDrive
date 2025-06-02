@@ -9,7 +9,7 @@ class GameLogProducer(
     private val gameLogKafkaTemplate: KafkaTemplate<String, GameLogEvent>
 ) {
     fun send(event: GameLogEvent) {
-        println("📤 Logging Game Event: $event")
+        println(" Logging Game Event: $event")
         gameLogKafkaTemplate.send("game-log-topic", event.username, event)
     }
 
