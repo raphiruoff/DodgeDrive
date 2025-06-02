@@ -1,12 +1,10 @@
 package de.ruoff.consistency.service.game
 
 import de.ruoff.consistency.events.GameFinishedEvent
-import de.ruoff.consistency.events.GameLogEvent
 import de.ruoff.consistency.events.ObstacleSpawnedEvent
 import de.ruoff.consistency.events.ScoreEvent
 import de.ruoff.consistency.events.ScoreUpdateEvent
 import de.ruoff.consistency.service.game.events.GameEventProducer
-import de.ruoff.consistency.service.game.events.GameLogProducer
 import de.ruoff.consistency.service.game.events.ScoreProducer
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -17,7 +15,6 @@ import java.util.*
 class GameService(
     private val gameRepository: GameRepository,
     private val scoreProducer: ScoreProducer,
-    private val gameLogProducer: GameLogProducer,
     private val redisLockService: RedisLockService,
     private val gameEventProducer: GameEventProducer,
 
@@ -49,7 +46,7 @@ class GameService(
             val gameId = UUID.randomUUID().toString()
             val obstacles = generateObstacles(gameId)
 
-            // 🛡️ Sicherstellen, dass Hindernisse da sind
+            //  Sicherstellen, dass Hindernisse da sind
             require(obstacles.isNotEmpty()) {
                 "Fehler: Keine Hindernisse generiert für Spiel $gameId"
             }
@@ -128,7 +125,7 @@ class GameService(
             val playerSet = game.scoredByPlayer.getOrPut(player) { mutableSetOf() }
 
             if (!playerSet.add(obstacleId)) {
-                println("⚠️ Obstacle $obstacleId wurde bereits für $player gewertet – abgelehnt.")
+                println("Obstacle $obstacleId wurde bereits für $player gewertet – abgelehnt.")
                 return false
             }
 
@@ -153,7 +150,7 @@ class GameService(
     }
 
     fun finishGame(gameId: String, player: String): Boolean {
-        println("🏁 finishGame() aufgerufen: gameId=$gameId, player=$player")
+        println(" finishGame() aufgerufen: gameId=$gameId, player=$player")
 
         val game = gameRepository.findById(gameId) ?: return false
         game.finishedPlayers.add(player)

@@ -186,7 +186,6 @@ class SessionService(
 
             while (System.currentTimeMillis() < timeoutAt) {
                 val g = gameClient.getGame(gameId)
-                println("⏳ startAt Check: gameId=$gameId → startAt=${g?.startAt}")
 
                 if (g?.startAt != null && g.startAt > 0L) {
                     finalGame = g
