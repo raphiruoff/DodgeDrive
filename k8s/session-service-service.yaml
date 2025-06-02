@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -o k8s/
+    kompose.version: 1.36.0 (HEAD)
+  labels:
+    io.kompose.service: session-service
+  name: session-service
+spec:
+  ports:
+    - name: "9101"
+      port: 9101
+      targetPort: 9101
+  selector:
+    io.kompose.service: session-service

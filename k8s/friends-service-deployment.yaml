@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -o k8s/
+    kompose.version: 1.36.0 (HEAD)
+  labels:
+    io.kompose.service: friends-service
+  name: friends-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: friends-service
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -o k8s/
+        kompose.version: 1.36.0 (HEAD)
+      labels:
+        io.kompose.service: friends-service
+    spec:
+      containers:
+        - env:
+            - name: SPRING_DATASOURCE_PASSWORD
+              value: postgres123
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres:5432/friends
+            - name: SPRING_DATASOURCE_USERNAME
+              value: postgres
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: kafka:9092
+          image: raphaelruoff/friends-service:1.0
+          name: friends-service
+          ports:
+            - containerPort: 9097
+              protocol: TCP
+      restartPolicy: Always
