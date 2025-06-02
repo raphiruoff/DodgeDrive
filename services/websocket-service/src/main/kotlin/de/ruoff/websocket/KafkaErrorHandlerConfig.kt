@@ -18,7 +18,7 @@ class KafkaConfig {
         }
 
         return DefaultErrorHandler({ record, ex ->
-            println("❌ Kafka Retry Error bei Topic ${record?.topic()}: ${ex.message}")
+            println(" Kafka Retry Error bei Topic ${record?.topic()}: ${ex.message}")
         }, backoff)
     }
 

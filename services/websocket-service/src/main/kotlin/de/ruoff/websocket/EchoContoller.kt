@@ -10,7 +10,7 @@ class EchoController {
     @MessageMapping("/echo")
     @SendTo("/topic/echo")
     fun echo(message: String): String {
-        println("📨 Echo empfangen: $message")
+        println(" Echo empfangen: $message")
         return "Echo: $message"
     }
 }

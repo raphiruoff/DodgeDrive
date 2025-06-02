@@ -149,8 +149,7 @@ class SessionService(
                 }
             }
 
-            // Neues Spiel erzeugen mit Retry
-            println("🆕 Spielerstellung wird versucht...")
+            println(" Spielerstellung wird versucht...")
             var successfulGameId: String? = null
             val maxRetries = 3
 
@@ -160,7 +159,7 @@ class SessionService(
                 val candidateGame = candidateGameId?.let { gameClient.getGame(it) }
 
                 if (candidateGame != null && candidateGame.obstaclesList.isNotEmpty()) {
-                    println("✅ Neues Spiel mit Hindernissen erstellt: gameId=$candidateGameId")
+                    println("Neues Spiel mit Hindernissen erstellt: gameId=$candidateGameId")
                     successfulGameId = candidateGameId
                     return@repeat
                 }
@@ -177,7 +176,7 @@ class SessionService(
 
             // Spiel starten
             val started = gameClient.startGame(gameId, username)
-            println("🚀 startGame aufgerufen: gameId=$gameId, success=$started")
+            println(" startGame aufgerufen: gameId=$gameId, success=$started")
 
             // Warte auf gültiges startAt
             val maxWaitTimeMs = 5000L
@@ -198,11 +197,10 @@ class SessionService(
             }
 
             if (finalGame == null) {
-                println("❌ Spielstart fehlgeschlagen: startAt blieb 0")
                 return Session.StartGameResponse.newBuilder().setSuccess(false).build()
             }
 
-            println("🎉 Spiel erfolgreich gestartet: gameId=${finalGame.gameId}, startAt=${finalGame.startAt}")
+            println(" Spiel erfolgreich gestartet: gameId=${finalGame.gameId}, startAt=${finalGame.startAt}")
             return Session.StartGameResponse.newBuilder()
                 .setSuccess(true)
                 .setStartAt(finalGame.startAt)
@@ -210,12 +208,11 @@ class SessionService(
                 .build()
 
         } catch (e: Exception) {
-            println("🛑 triggerGameStart: Fehler: ${e.message}")
+            println(" triggerGameStart: Fehler: ${e.message}")
             e.printStackTrace()
             return Session.StartGameResponse.newBuilder().setSuccess(false).build()
         } finally {
             redisLockService.releaseLock(lockKey)
-            println("🔓 Lock freigegeben für $sessionId")
         }
     }
 

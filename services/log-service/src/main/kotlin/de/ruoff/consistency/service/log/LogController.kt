@@ -58,7 +58,7 @@ class LogController(
             responseObserver.onCompleted()
 
         } catch (e: Exception) {
-            println("❌ Fehler beim Verarbeiten von logEvent:")
+            println(" Fehler beim Verarbeiten von logEvent:")
             e.printStackTrace()
 
             val errorResponse = LogEventResponse.newBuilder()

@@ -16,11 +16,8 @@ class LogConsumer(
         containerFactory = "gameLogKafkaListenerContainerFactory"
     )
     fun consume(event: GameLogEvent) {
-        println("📥 Received GameLogEvent: $event")
-        println("📥 Empfangener Event: $event → gespeichert in Mongo? ${event.eventType}")
 
         if (event.eventType == "debug_start_marker") {
-            println("✅ ✅ DEBUG START MARKER empfangen – origin=${event.originTimestamp}")
         }
 
         val now = System.currentTimeMillis()
@@ -39,7 +36,6 @@ class LogConsumer(
 
 
         if (event.eventType == "game_finished") {
-            println("🏁 Gewinner ${event.username} triggert Log-Export für ${event.gameId}")
             Thread.sleep(1000)
             logService.exportLogsToCsv(event.gameId)
         }

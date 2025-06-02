@@ -19,7 +19,6 @@ class GameServiceApplication {
     @Bean
     fun contextLogger(@Value("\${spring.grpc.server.port}") grpcPort: Int): CommandLineRunner {
         return CommandLineRunner {
-            println("✅ GameService läuft auf gRPC Port: $grpcPort")
         }
     }
 }

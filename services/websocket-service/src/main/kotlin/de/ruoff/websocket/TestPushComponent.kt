@@ -13,7 +13,7 @@ class TestPushComponent(
     @EventListener(ApplicationReadyEvent::class)
     fun sendTestMessage() {
         val topic = "/topic/test"
-        val message = "✅ Hello from minimal WebSocket server!"
+        val message = " Hello from minimal WebSocket server!"
         println("📢 Sende Test-Nachricht an $topic: $message")
         messagingTemplate.convertAndSend(topic, message)
     }

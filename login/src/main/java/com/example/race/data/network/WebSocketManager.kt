@@ -32,7 +32,6 @@ object WebSocketManager {
         onGameFinished: (GameFinishedEvent) -> Unit = {},
         onConnected: () -> Unit = {}
     ) {
-        println("WebSocket 🔌 Starte Verbindung zu $SOCKET_URL für gameId=$gameId")
 
         disconnect()
 
@@ -46,23 +45,20 @@ object WebSocketManager {
         lifecycleDisposable = stompClient.lifecycle().subscribe { event ->
             when (event.type) {
                 LifecycleEvent.Type.OPENED -> {
-                    println("WebSocket ✅ Verbindung geöffnet")
 
                     testDisposable = stompClient.topic("/topic/test").subscribe({}, {})
                     echoDisposable = stompClient.topic("/topic/echo").subscribe({}, {})
 
-                    println("WebSocket 📡 Subscribing zu /topic/obstacles/$gameId")
                     obstacleDisposable = stompClient.topic("/topic/obstacles/$gameId").subscribe(
                         { frame ->
                             try {
                                 val obstacle = Gson().fromJson(frame.payload, ObstacleSpawnedEvent::class.java)
-                                println("WebSocket 🚧 Hindernis erhalten: $obstacle")
                                 globalOnObstacle?.invoke(obstacle)
                             } catch (e: Exception) {
-                                println("WebSocket ❌ Fehler beim Parsen von obstacle: ${e.message}")
+                                println("WebSocket  Fehler beim Parsen von obstacle: ${e.message}")
                             }
                         }, { error ->
-                            println("WebSocket ❌ Fehler beim Subscriben zu Obstacles: $error")
+                            println("WebSocket  Fehler beim Subscriben zu Obstacles: $error")
                         }
                     )
 
@@ -74,51 +70,51 @@ object WebSocketManager {
                                 println("WebSocket 🏁 Score-Update erhalten: $scoreUpdate")
                                 globalOnScoreUpdate?.invoke(scoreUpdate)
                             } catch (e: Exception) {
-                                println("WebSocket ❌ Fehler beim Parsen von ScoreUpdate: ${e.message}")
+                                println("WebSocket  Fehler beim Parsen von ScoreUpdate: ${e.message}")
                             }
                         }, { error ->
-                            println("WebSocket ❌ Fehler beim Subscriben zu Scores: $error")
+                            println("WebSocket  Fehler beim Subscriben zu Scores: $error")
                         }
                     )
 
-                    println("WebSocket 📡 Subscribing zu /topic/game-finished/$gameId")
+                    println("WebSocket  Subscribing zu /topic/game-finished/$gameId")
                     gameFinishedDisposable = stompClient.topic("/topic/game-finished/$gameId").subscribe(
                         { frame ->
                             try {
                                 val event = Gson().fromJson(frame.payload, GameFinishedEvent::class.java)
-                                println("WebSocket 🎮 Game-Finished-Event: $event")
+                                println("WebSocket  Game-Finished-Event: $event")
                                 globalOnGameFinished?.invoke(event)
                             } catch (e: Exception) {
-                                println("WebSocket ❌ Fehler beim Parsen von GameFinished: ${e.message}")
+                                println("WebSocket  Fehler beim Parsen von GameFinished: ${e.message}")
                             }
                         }, { error ->
-                            println("WebSocket ❌ Fehler beim Subscriben zu GameFinished: $error")
+                            println("WebSocket  Fehler beim Subscriben zu GameFinished: $error")
                         }
                     )
 
-                    sendEchoMessage("Hallo Server 👋")
+                    sendEchoMessage("Hallo Server ")
                     onConnected()
                 }
 
                 LifecycleEvent.Type.ERROR -> {
-                    println("WebSocket ❌ Verbindungsfehler: ${event.exception}")
+                    println("WebSocket Verbindungsfehler: ${event.exception}")
                 }
 
                 LifecycleEvent.Type.CLOSED -> {
-                    println("WebSocket 🔌 Verbindung geschlossen")
+                    println("WebSocket  Verbindung geschlossen")
                 }
 
                 LifecycleEvent.Type.FAILED_SERVER_HEARTBEAT -> {
-                    println("WebSocket 💔 Server-Heartbeat fehlgeschlagen")
+                    println("WebSocket  Server-Heartbeat fehlgeschlagen")
                 }
 
                 else -> {
-                    println("WebSocket ℹ️ Event: ${event.type}")
+                    println("WebSocket ℹ Event: ${event.type}")
                 }
             }
         }
 
-        println("WebSocket ⏳ Versuche Verbindung herzustellen…")
+        println("WebSocket Versuche Verbindung herzustellen…")
         stompClient.connect()
     }
 

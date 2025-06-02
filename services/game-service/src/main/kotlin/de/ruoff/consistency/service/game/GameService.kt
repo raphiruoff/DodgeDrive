@@ -8,10 +8,10 @@ import de.ruoff.consistency.events.ScoreUpdateEvent
 import de.ruoff.consistency.service.game.events.GameEventProducer
 import de.ruoff.consistency.service.game.events.GameLogProducer
 import de.ruoff.consistency.service.game.events.ScoreProducer
-import org.springframework.stereotype.Service
-import java.util.*
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import org.springframework.stereotype.Service
+import java.util.*
 
 @Service
 class GameService(
@@ -65,7 +65,7 @@ class GameService(
 
             gameRepository.save(game)
 
-            println("✅ Spiel $gameId erstellt mit ${obstacles.size} Hindernissen")
+            println("Spiel $gameId erstellt mit ${obstacles.size} Hindernissen")
 
             return game
         } finally {

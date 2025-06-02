@@ -16,7 +16,7 @@ class KafkaToWebSocketListener(
         topics = ["obstacle-topic"],
     )
     fun handleObstacle(event: ObstacleSpawnedEvent) {
-        println("📡 Kafka: Obstacle empfangen für Spiel ${event.gameId}")
+        println(" Kafka: Obstacle empfangen für Spiel ${event.gameId}")
 
         val topic = "/topic/obstacles/${event.gameId}"
         messagingTemplate.convertAndSend(topic, event)
@@ -40,12 +40,12 @@ class KafkaToWebSocketListener(
         topics = ["game-finished-topic"],
     )
     fun handleGameFinished(event: GameFinishedEvent) {
-        println("✅ Kafka: GameFinishedEvent für Spiel ${event.gameId} empfangen – Gewinner: ${event.winner}")
+        println(" Kafka: GameFinishedEvent für Spiel ${event.gameId} empfangen – Gewinner: ${event.winner}")
 
         val topic = "/topic/game-finished/${event.gameId}"
         messagingTemplate.convertAndSend(topic, event)
 
-        println("🏁 Spielergebnis an WebSocket gesendet: $topic")
+        println(" Spielergebnis an WebSocket gesendet: $topic")
     }
 
 }
